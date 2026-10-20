@@ -65,6 +65,8 @@ public class UiTests
     public Task NoiseFilterSelectionHasNoBindingError() => Session.Dispatch(() =>
     {
         var (window, vm) = OpenReceiveTools();
+        vm.Settings.RxNoiseFilter = NoiseFilter.Off; // don't depend on what an earlier test left in the shared settings
+        Dispatcher.UIThread.RunJobs();
         var box = NoiseFilterBox(window);
         Assert.False(DataValidationErrors.GetHasErrors(box), Errors(box));
         Assert.Equal(NoiseFilter.Off, box.SelectedItem);
@@ -293,6 +295,7 @@ public class UiTests
         Assert.False(DataValidationErrors.GetHasErrors(box), Errors(box));
         Assert.Equal(NoiseFilter.Low, box.SelectedItem);
         Assert.Equal(NoiseFilter.Low, vm.Settings.RxNoiseFilter);
+        vm.Settings.RxNoiseFilter = NoiseFilter.Off; // closing saves the settings; leave the default for other tests
         window.Close();
     }, CancellationToken.None);
 
@@ -327,6 +330,54 @@ public class UiTests
         vm.Settings.MyCall = "om1pu";
         Assert.Equal("OM1PU", vm.Settings.MyCall);
         vm.Settings.MyCall = "";
+        window.Close();
+    }, CancellationToken.None);
+
+    [Fact]
+    public Task OverlayDropdownFollowsTheOrderSetInSettings() => Session.Dispatch(() =>
+    {
+        var vm = new MainWindowViewModel();
+        var window = new MainWindow { DataContext = vm, Width = 1256, Height = 860 };
+        window.Show();
+        vm.SelectedTab = MainWindowViewModel.TransmitTab;
+        Dispatcher.UIThread.RunJobs();
+        var profiles = vm.Settings.OverlayProfiles;
+        var original = profiles.ToList();
+        var box = window.GetVisualDescendants().OfType<ComboBox>().Single(c => c.Name == "OverlayProfileBox");
+
+        box.SelectedIndex = 1; // the dropdown selects the profile
+        Dispatcher.UIThread.RunJobs();
+        var chosen = vm.SelectedProfile;
+        Assert.Same(profiles[1], chosen);
+
+        vm.SelectedTab = MainWindowViewModel.SettingsTab; // reorder in Settings
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(vm.MoveProfileUpCommand.CanExecute(profiles[0]));
+        Assert.False(vm.MoveProfileDownCommand.CanExecute(profiles[^1]));
+        vm.MoveProfileUpCommand.Execute(chosen);                 // the selected one moves to the top
+        vm.MoveProfileDownCommand.Execute(profiles[1]);          // another one moves past it
+        Dispatcher.UIThread.RunJobs();
+        Assert.Same(chosen, vm.SelectedProfile);                 // moving never changes the selection
+        Assert.Same(chosen, vm.SelectedProfileChoice);
+
+        vm.SelectedTab = MainWindowViewModel.TransmitTab;        // the dropdown shows the new order
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(profiles.Select(p => p.Name), box.Items.Cast<OverlayProfile>().Select(p => p.Name));
+        Assert.Same(chosen, box.SelectedItem);
+
+        vm.MoveProfileDownCommand.Execute(chosen);               // a move while the dropdown is visible
+        Dispatcher.UIThread.RunJobs();
+        Assert.Same(chosen, vm.SelectedProfile);
+        Assert.Same(chosen, box.SelectedItem);
+
+        foreach (var tab in new[] { 2, 0, 1, 2, 1 })              // detaching the tab must not clear the selection
+        {
+            vm.SelectedTab = tab;
+            Dispatcher.UIThread.RunJobs();
+            Assert.Same(chosen, vm.SelectedProfile);
+        }
+
+        for (var i = 0; i < original.Count; i++) profiles.Move(profiles.IndexOf(original[i]), i); // restore
         window.Close();
     }, CancellationToken.None);
 

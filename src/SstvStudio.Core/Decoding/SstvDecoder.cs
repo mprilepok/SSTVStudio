@@ -86,7 +86,8 @@ public sealed class SstvDecoder
     {
         _demod = new FmDemodulator(sampleRate);
         _k = _demod.OutputRate / 1000.0;
-        _vis = new VisDetector(_demod.OutputRate);
+        // Only codes of known modes count, unless a forced mode will decode any header anyway.
+        _vis = new VisDetector(_demod.OutputRate, code => ForcedMode is not null || SstvModes.All.Any(m => m.VisCode == code));
     }
 
     public event Action<SstvMode>? ImageStarted;

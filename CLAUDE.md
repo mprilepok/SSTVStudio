@@ -91,6 +91,14 @@ dotnet test tests/SstvStudio.Tests --filter "FullyQualifiedName~EncoderTests.Ima
   re-renders on any change. `AppSettings.Migrate()` seeds the CQ / Reply / 73 defaults and turns a customised
   legacy `OverlayTop`/`OverlayBottom` into a "My overlay" profile. `ImageComposer` stacks the lines for each position
   and shrinks any line too wide to fit.
+  The Transmit tab picks the profile in a ComboBox (`OverlayProfileBox`), and Settings → OVERLAY PROFILES reorders
+  `OverlayProfiles` in place (`MoveProfileUp/DownCommand`, `ObservableCollection.Move`). Notes on the ComboBox:
+  - Bind it by **item** (`SelectedProfileChoice`, which ignores null), never by index. When the list changes, the
+    ComboBox shifts its index after we've corrected it, and a stale index selected the wrong profile; this was
+    also seen on settings import.
+  - It drops its selection when the selected item moves, and the binding won't resend the same value, so
+    `MainWindow` puts the selection back after every collection change. Test:
+    `OverlayDropdownFollowsTheOrderSetInSettings`.
   Live audio comes in through `IAudioInput`: `AudioInput` (WinMM) or, when the environment variable
   `SSTVSTUDIO_SIMULATED_INPUT` points to a WAV, `SimulatedAudioInput`. The simulated input plays that file in real
   time as if it were the sound card, which is the way to test live reception without a radio. Both report

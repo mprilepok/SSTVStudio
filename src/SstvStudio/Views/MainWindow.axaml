@@ -93,20 +93,7 @@
             <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="#7F849C"/>
         </Style>
-        <Style Selector="ListBox.chips">
-            <Setter Property="Background" Value="Transparent"/>
-        </Style>
-        <Style Selector="ListBox.chips ListBoxItem">
-            <Setter Property="Padding" Value="14,5"/>
-            <Setter Property="Margin" Value="0,0,6,0"/>
-            <Setter Property="CornerRadius" Value="14"/>
-            <Setter Property="Background" Value="#313244"/>
-        </Style>
-        <Style Selector="ListBox.chips ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox.chips ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#89B4FA"/>
-            <Setter Property="Foreground" Value="#1E1E2E"/>
-        </Style>
-        <Style Selector="ListBox:not(.chips) ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox:not(.chips) ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+        <Style Selector="ListBox ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="#45475A"/>
         </Style>
         <Style Selector="Button">
@@ -488,19 +475,16 @@
 
                         <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
                             <TextBlock Text="OVERLAY" Classes="section" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <ListBox Grid.Column="1" Classes="chips" ItemsSource="{Binding Settings.OverlayProfiles}"
-                                     SelectedItem="{Binding SelectedProfile}" VerticalAlignment="Center">
-                                <ListBox.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel/>
-                                    </ItemsPanelTemplate>
-                                </ListBox.ItemsPanel>
-                                <ListBox.ItemTemplate>
+                            <ComboBox Grid.Column="1" x:Name="OverlayProfileBox" ItemsSource="{Binding Settings.OverlayProfiles}"
+                                      SelectedItem="{Binding SelectedProfileChoice}" MinWidth="180" MaxWidth="320"
+                                      HorizontalAlignment="Left" VerticalAlignment="Center"
+                                      ToolTip.Tip="Overlay profile. Reorder the list in Settings → OVERLAY PROFILES.">
+                                <ComboBox.ItemTemplate>
                                     <DataTemplate x:DataType="services:OverlayProfile">
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
                                     </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
                             <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                                 <StackPanel Classes="zoombar" DataContext="{Binding TxZoom}" x:DataType="vm:ZoomViewModel" Margin="0,0,10,0">
                                     <CheckBox Content="Fit" IsChecked="{Binding IsFit}"
@@ -740,6 +724,29 @@
                                                 <TextBox Text="{Binding Numbers.SwrTrip.Text}"/>
                                             </StackPanel>
                                         </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="card">
+                                    <StackPanel>
+                                        <TextBlock Text="OVERLAY PROFILES" Classes="section"/>
+                                        <ItemsControl x:Name="ProfileOrder" ItemsSource="{Binding Settings.OverlayProfiles}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="services:OverlayProfile">
+                                                    <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2">
+                                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                        <Button Grid.Column="1" Content="▲" Padding="10,2" Margin="8,0,0,0"
+                                                                Command="{Binding #ProfileOrder.((vm:MainWindowViewModel)DataContext).MoveProfileUpCommand}"
+                                                                CommandParameter="{Binding}" ToolTip.Tip="Move up"/>
+                                                        <Button Grid.Column="2" Content="▼" Padding="10,2" Margin="4,0,0,0"
+                                                                Command="{Binding #ProfileOrder.((vm:MainWindowViewModel)DataContext).MoveProfileDownCommand}"
+                                                                CommandParameter="{Binding}" ToolTip.Tip="Move down"/>
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <TextBlock Classes="hint" Margin="0,6,0,0"
+                                                   Text="This is the order of the overlay list on the Transmit tab. Profiles are edited there, under Edit overlay profile."/>
                                     </StackPanel>
                                 </Border>
 

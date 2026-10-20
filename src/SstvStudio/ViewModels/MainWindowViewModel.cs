@@ -68,6 +68,13 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _selectedProfile = Settings.OverlayProfiles.FirstOrDefault(p => p.Name == Settings.OverlayProfileName)
                            ?? Settings.OverlayProfiles[0];
         Watch(_selectedProfile);
+        Settings.OverlayProfiles.CollectionChanged += (_, _) =>
+        {
+            // Reordered, added or removed: the move buttons may have changed. (MainWindow puts the dropdown's
+            // selection back, which a ComboBox drops when its selected item moves.)
+            MoveProfileUpCommand.NotifyCanExecuteChanged();
+            MoveProfileDownCommand.NotifyCanExecuteChanged();
+        };
         AudioDevices = AudioOutput.GetDevices();
         SerialPorts = SerialPort.GetPortNames();
 
@@ -101,7 +108,22 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(DeleteProfileCommand))]
+    [NotifyPropertyChangedFor(nameof(SelectedProfileChoice))]
     private OverlayProfile _selectedProfile;
+
+    /// <summary>
+    /// The overlay dropdown's selection. Bound by item, not index: when profiles are reordered, added or removed, the
+    /// ComboBox shifts its index after we have already corrected it, and a stale index selected the wrong profile.
+    /// Null ("nothing selected", reported while the Transmit tab is detached, or mid-move) is ignored.
+    /// </summary>
+    public OverlayProfile? SelectedProfileChoice
+    {
+        get => SelectedProfile;
+        set
+        {
+            if (value is not null && Settings.OverlayProfiles.Contains(value)) SelectedProfile = value;
+        }
+    }
     public IReadOnlyList<PttMethod> PttMethods { get; } = Enum.GetValues<PttMethod>();
     public IReadOnlyList<int> SampleRates { get; } = [44100, 48000];
     public IReadOnlyList<string> AudioDevices { get; private set; }
@@ -330,6 +352,26 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         SelectedProfile = Settings.OverlayProfiles[index == 0 ? 1 : index - 1];
         Settings.OverlayProfiles.Remove(doomed);
         DeleteProfileCommand.NotifyCanExecuteChanged();
+    }
+
+    // Settings → OVERLAY PROFILES: the order there is the order of the Transmit tab's dropdown.
+    private bool CanMoveProfileUp(OverlayProfile? profile) => profile is not null && Settings.OverlayProfiles.IndexOf(profile) > 0;
+
+    [RelayCommand(CanExecute = nameof(CanMoveProfileUp))]
+    private void MoveProfileUp(OverlayProfile? profile)
+    {
+        var index = profile is null ? -1 : Settings.OverlayProfiles.IndexOf(profile);
+        if (index > 0) Settings.OverlayProfiles.Move(index, index - 1);
+    }
+
+    private bool CanMoveProfileDown(OverlayProfile? profile) =>
+        profile is not null && Settings.OverlayProfiles.IndexOf(profile) is var i && i >= 0 && i < Settings.OverlayProfiles.Count - 1;
+
+    [RelayCommand(CanExecute = nameof(CanMoveProfileDown))]
+    private void MoveProfileDown(OverlayProfile? profile)
+    {
+        var index = profile is null ? -1 : Settings.OverlayProfiles.IndexOf(profile);
+        if (index >= 0 && index < Settings.OverlayProfiles.Count - 1) Settings.OverlayProfiles.Move(index, index + 1);
     }
 
     /// <summary>Adds back any of the built-in CQ / Reply / 73 profiles that are missing; never overwrites.</summary>

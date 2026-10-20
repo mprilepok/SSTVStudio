@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 using SstvStudio.ViewModels;
 
@@ -27,6 +28,13 @@ public partial class MainWindow : Window
             if (DataContext is not MainWindowViewModel vm) return;
             vm.TxZoom.PropertyChanged += RemeasureZoomViewers;
             vm.Receive.Zoom.PropertyChanged += RemeasureZoomViewers;
+            // A ComboBox drops its selection when the selected item moves (reordering in Settings), and the binding
+            // won't resend a value it already delivered, so put the selection back once the change is handled.
+            vm.Settings.OverlayProfiles.CollectionChanged += (_, _) => Dispatcher.UIThread.Post(() =>
+            {
+                if (!ReferenceEquals(OverlayProfileBox.SelectedItem, vm.SelectedProfile))
+                    OverlayProfileBox.SelectedItem = vm.SelectedProfile;
+            });
         };
     }
 

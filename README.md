@@ -3,7 +3,7 @@
 A modern slow-scan TV **transmitter and receiver** for Windows. Built with .NET 10 and Avalonia 12, it keys the rig through
 **Hamlib rigctld** and logs QSOs to **Wavelog**.
 
-**New users: start with the [User Manual](docs/USER_MANUAL.md).** Planned work and release tasks: [docs/TODO.md](docs/TODO.md). See [docs/ANALYSIS.md](docs/ANALYSIS.md) for the survey of existing SSTV software and the design rationale.
+**New users: start with the [User Manual](docs/manual/README.md).** Planned work and release tasks: [docs/TODO.md](docs/TODO.md). See [docs/ANALYSIS.md](docs/ANALYSIS.md) for the survey of existing SSTV software and the design rationale.
 
 ## Features
 - **15 modes:** Martin M1/M2, Scottie S1/S2/DX, Robot 36/72, PD 50/90/120/160/180/240/290, and Wraase SC2-180,

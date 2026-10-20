@@ -38,6 +38,11 @@ messages and actions that are safe to repeat, and guard every off-air failure wi
     Scaling dropdown.
 - [x] **TX audio level by mouse wheel:** 1 % per notch with the pointer over the slider. The panel doesn't scroll
   meanwhile, and it works during TX. Any slider with the `wheel` class gets this.
+- [x] **Overlay profile dropdown, and reordering in Settings.** The Transmit tab's chips are now a dropdown.
+  Settings → OVERLAY PROFILES reorders the profiles with ▲ ▼, and the dropdown follows that order.
+  - Two ComboBox pitfalls were found by the test and fixed: the wrong profile was selected after reordering or
+    importing, and the dropdown went blank after a move.
+  - A test-order dependency in the noise-filter UI tests was fixed along the way.
 - [x] **Callsigns are upper case as you type or paste** (QSO callsign on both tabs, and My callsign), with the
   cursor kept in place.
 - [x] **Reception benchmark** with fixed-seed HF conditions and PSNR floors. Its findings are listed under P1 →
@@ -168,6 +173,26 @@ They were run directly over rigctld with the operator present, not through the a
 - [ ] **README for the public**: screenshots (Receive tab with waterfall, Transmit tab with overlay), download and
   install steps, supported modes, a link to the user manual, and the licence.
 - [ ] **Known limitations** section in the README and manual (see "Known limitations" below).
+- [ ] **Screenshots for the manual** (S1–S18, checklist in `docs/SCREENSHOTS.md`). The manual has a 📷 marker at
+  each place. Shots that don't need the radio can be rendered headlessly; the rest need the operator.
+- [x] **User manual brought up to date (2026-10-20).**
+  - New: the error banner and **Open log**, the settings backup, checked number fields, upper-case callsigns,
+    Fix tuning's "Already corrected" and its other refusals, the mouse-wheel TX level, and the FT-991 as a verified
+    rig with example TX levels.
+  - Corrected: ISS events use PD 120 (sometimes PD 180), not Robot 36.
+- [x] **Manual split into chapters** in `docs/manual/`:
+  - `README.md` is the index, with a "start here" path and a one-line description of each chapter.
+  - There are 12 chapter files, each with previous / contents / next links. All 80 links have been checked.
+  - `docs/USER_MANUAL.md` now only points to the chapters.
+- [x] **New chapter 11, SSTV modes**, covering:
+  - how SSTV sends a picture;
+  - what makes modes differ (resolution, time per pixel, RGB versus YCrCb, sync, time on air, popularity);
+  - the families and their origins;
+  - each of the 15 modes with its benefits, drawbacks and best use;
+  - a comparison table, a "which mode to choose" table, and practical tips.
+
+  Pixel times come from the mode definitions in the code. Robot's colour pixels are given separately, being half
+  the brightness pixel. 🧑 Check the family origins (callsigns) before release.
 
 ---
 
