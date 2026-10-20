@@ -274,6 +274,80 @@ public class DecoderTests
         Assert.True(score.Filled > 0.99);
     }
 
+    /// <summary>
+    /// Regression, real off-air: a weak Robot 36 on 14.230 MHz (FT-991, 2026-10-20) whose header the old detector
+    /// missed. Noise squeezed its tones towards mid-band (leader read 1781 Hz, start/stop bits ~1250 Hz), so they
+    /// failed the fixed-frequency checks. 6 s around the header, resampled to 12 kHz.
+    /// </summary>
+    [Fact]
+    public void DecodesRealWeakHeader()
+    {
+        using var file = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "Data", "robot36-weak-header-14230.wav"));
+        var (samples, rate) = WavReader.Read(file);
+        var decoder = new SstvDecoder(rate);
+        var started = new List<SstvMode>();
+        decoder.ImageStarted += started.Add;
+        for (var i = 0; i < samples.Length; i += 4096)
+            decoder.Process(samples.AsSpan(i, Math.Min(4096, samples.Length - i)));
+
+        Assert.Equal([SstvModes.Robot36], started);
+        Assert.InRange(decoder.TuningOffsetHz, -60, 60);
+    }
+
+    /// <summary>1 s of noise, then the preamble, VIS and 1.5 s of picture, at an SNR in 3 kHz.</summary>
+    private static float[] HeaderInNoise(SstvMode mode, double snrDb, int seed)
+    {
+        const int rate = 12000;
+        var options = new TransmitOptions(SendPreamble: true);
+        var ms = SstvEncoder.DurationMs(mode, options) - mode.ImageDurationMs + 1500;
+        var synth = new ToneSynthesizer(SstvEncoder.Encode(mode, TestImage(mode), options), ms, rate, 0.5);
+        var audio = new float[(int)((ms / 1000 + 1) * rate)];
+        synth.Read(audio.AsSpan(rate));
+        var sigma = Math.Sqrt(0.125 / Math.Pow(10, snrDb / 10) * (rate / 2.0) / 3000);
+        var rng = new Random(seed);
+        for (var i = 0; i < audio.Length; i++)
+            audio[i] += (float)(sigma * Math.Sqrt(-2 * Math.Log(1 - rng.NextDouble())) * Math.Cos(2 * Math.PI * rng.NextDouble()));
+        return audio;
+    }
+
+    /// <summary>The fixed-window detector found 10 % of headers at 2 dB SNR; this one ~87 %.</summary>
+    [Fact]
+    public void FindsWeakHeaders()
+    {
+        var found = Enumerable.Range(0, 20).AsParallel().Count(seed =>
+        {
+            var audio = HeaderInNoise(SstvModes.MartinM1, snrDb: 2, seed: 2000 + seed);
+            var decoder = new SstvDecoder(12000);
+            var ok = false;
+            decoder.ImageStarted += m => ok |= m == SstvModes.MartinM1;
+            for (var i = 0; i < audio.Length; i += 4096) decoder.Process(audio.AsSpan(i, Math.Min(4096, audio.Length - i)));
+            return ok;
+        });
+        Assert.InRange(found, 14, 20);
+    }
+
+    /// <summary>A more sensitive detector must not start pictures out of thin air: 5 minutes of noise, 4 levels.</summary>
+    [Fact]
+    public void NoFalseStartsInFiveMinutesOfNoise()
+    {
+        var starts = new[] { 0.05, 0.2, 0.5, 1.0 }.AsParallel().Sum(level =>
+        {
+            var rng = new Random((int)(level * 1000));
+            var decoder = new SstvDecoder(12000);
+            var n = 0;
+            decoder.ImageStarted += _ => n++;
+            var buffer = new float[12000];
+            for (var s = 0; s < 75; s++)
+            {
+                for (var i = 0; i < buffer.Length; i++)
+                    buffer[i] = (float)(level * Math.Sqrt(-2 * Math.Log(1 - rng.NextDouble())) * Math.Cos(2 * Math.PI * rng.NextDouble()));
+                decoder.Process(buffer);
+            }
+            return n;
+        });
+        Assert.Equal(0, starts);
+    }
+
     [Fact]
     public void IgnoresNoiseWithoutVis()
     {

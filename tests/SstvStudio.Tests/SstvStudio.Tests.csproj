@@ -14,6 +14,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Real off-air recordings used as regression fixtures. -->
+  <ItemGroup>
+    <None Include="Data\*.wav" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\..\src\SstvStudio.Core\SstvStudio.Core.csproj" />
     <ProjectReference Include="..\..\src\SstvStudio.Wavelog\SstvStudio.Wavelog.csproj" />

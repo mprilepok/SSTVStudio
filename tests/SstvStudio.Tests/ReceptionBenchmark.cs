@@ -53,15 +53,15 @@ public class ReceptionBenchmark(ITestOutputHelper output)
 
     /// <summary>
     /// Lowest acceptable PSNR (dB) per condition, over all modes: about 1 dB below the worst mode on 2026-10-20.
-    /// Null marks a known gap: reported, not yet required. No VIS header is found at 2 dB or less, or deep in a
-    /// fade.
+    /// Null marks a known gap: reported, not yet required. No VIS header is found at 0 dB with these seeds, or deep in
+    /// a fade. (Until the self-referencing VIS detector, 2 dB was a gap too.)
     /// </summary>
     private static readonly Dictionary<string, double?> Floors = new()
     {
         ["clean"] = 22.5,
         ["SNR 10 dB"] = 14.5,
         ["SNR 5 dB"] = 10.5,
-        ["SNR 2 dB"] = null,
+        ["SNR 2 dB"] = 8.0,
         ["SNR 0 dB"] = null,
         ["fade 10 dB, SNR 8"] = null,
         ["drift 40 Hz, SNR 10"] = 14.0,
@@ -124,7 +124,7 @@ public class ReceptionBenchmark(ITestOutputHelper output)
     }
 
     /// <summary>1 s of channel noise, the transmission through the simulated channel, 1 s of noise.</summary>
-    private static float[] Audio(SstvMode mode, RgbImage image, Condition c, int seed)
+    internal static float[] Audio(SstvMode mode, RgbImage image, Condition c, int seed)
     {
         var options = new TransmitOptions(SendPreamble: true);
         var duration = SstvEncoder.DurationMs(mode, options);
@@ -158,7 +158,7 @@ public class ReceptionBenchmark(ITestOutputHelper output)
         Math.Sqrt(-2 * Math.Log(1 - rng.NextDouble())) * Math.Cos(2 * Math.PI * rng.NextDouble());
 
     /// <summary>Gradients plus a fine checkerboard band, so both smooth areas and detail count.</summary>
-    private static RgbImage TestImage(SstvMode mode)
+    internal static RgbImage TestImage(SstvMode mode)
     {
         var img = new RgbImage(mode.Width, mode.Height);
         for (var y = 0; y < mode.Height; y++)

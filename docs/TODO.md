@@ -68,7 +68,8 @@ Next:
    - receiving at 44.1 kHz;
    - a 2-second key at ~75 % to see whether the FT-991's ALC reading rises.
 3. The three packaging decisions (🧑).
-4. More sensitive VIS detection (P1 → Reception).
+4. ~~More sensitive VIS detection~~ done. Next for reception: auto start without a VIS header, and the Scottie S2
+   drop (P1 → Reception).
 
 ---
 
@@ -222,8 +223,41 @@ They were run directly over rigctld with the operator present, not through the a
 - [~] **Robust pixel values (weak signals): tried, no gain.** Weighting readings by signal power and clamping
   them to 1400–2400 Hz changed PSNR by ≤ 0.05 dB in every condition. In this regime the noise isn't spiky, so
   it was reverted.
-- [ ] **More sensitive VIS detection** (top reception gain per the benchmark). For example, correlate whole
-  30 ms bits instead of testing 10 ms blocks, and accept a header when the parity and the following sync agree.
+- [x] **More sensitive VIS detection (2026-10-20).** It was found on a live receive test with the FT-991 on 14.230:
+  a Robot 36 at +4 to +6 dB SNR was never started, although its leader was clearly visible.
+  - **Cause:** noise squeezes the measured tones toward mid-band. Its leader read 1781 Hz and its sync bits
+    ~1250 Hz, so fixed-frequency checks failed.
+  - **Fix:** the detector now judges the header against itself (see `VisDetector`).
+
+  | SNR | 3 dB | 2 dB | 1 dB | 0 dB |
+  |---|---|---|---|---|
+  | Headers found, before | 53 % | 10 % | 0 % | 0 % |
+  | Headers found, now | 100 % | 86 % | 68 % | 46 % |
+
+  - **Safety:** no false starts in 40 minutes of noise, and about 1 wrong-mode picture per 300 weak headers (the
+    rest are abandoned by the sync check).
+  - **Benchmark:** the 2 dB condition is now decoded and required.
+  - **Real test file:** the missed real header (6 s, 12 kHz) is in `tests/SstvStudio.Tests/Data/`.
+  - **Still open:** deep fades (header 8 dB down) and 0 dB with the benchmark's seeds. A tone-energy (Goertzel)
+    detector could gain more there. A real header at −1.2 dB (live recording, 129.8 s) is fully squeezed (leader
+    1730 Hz, sync 1653 Hz) and only a tone-energy detector could catch it.
+  - **Live check, 40 minutes on 14.230 (FT-991, 2026-10-20):** 12 real SSTV headers.
+    - The new detector started every header at +1.7 dB or more (11 of them); the old one missed the +1.7 dB one.
+    - Neither started anything without a header (no false starts).
+    - An independent spectrogram search flagged 23 candidates. The other 11 were non-SSTV signals (a whistle,
+      static, a 1840 Hz burst beacon), correctly ignored.
+- [ ] **Pictures with weak sync pulses are abandoned** (reliability bug, found on a live recording on 2026-10-20).
+  - **The case:** a Martin M1 at about +10 dB on 14.230. Its header decoded correctly, but its 1200 Hz sync pulses
+    were mostly missing or weak. After 8 lines the presence check (which measures sync pulses) abandoned it.
+  - **Evidence it's decodable:** the independent PyPI `sstv` decoder, with the mode forced and fixed nominal
+    timing, produced a clear picture (a cartoon with trees and text). Our manual start lost track, with a slant fit
+    of +3111 ppm from false edges.
+  - **Fix ideas:**
+    - When the header was clean, keep receiving on the VIS timing ("flywheel"), judging presence by the audio
+      itself (energy concentrated in 1500–2300 Hz) as well as the sync pulses.
+    - Tighten `Confirm()`'s clock tolerance from 3 % to a realistic ~1.5 %, so pulses far apart can't confirm
+      false edges.
+    - A real test file can be cut from the recording, as for `DecodesRealWeakHeader`.
 - [ ] **Auto start without a VIS header.** Spot a run of regular sync pulses, work out the mode from their spacing,
   and start receiving automatically, so pictures whose header was lost in QRM or fading aren't missed.
 - [ ] **Smooth more on noisy signals** (as slowrx does). Measure the signal-to-noise ratio, then average over longer

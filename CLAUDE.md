@@ -20,7 +20,18 @@ dotnet test tests/SstvStudio.Tests --filter "FullyQualifiedName~EncoderTests.Ima
   before the sync. The decoder works in four stages:
   1. `FmDemodulator` mixes 1700 Hz down to baseband, filters to ±800 Hz, decimates to ~12 kHz and runs a
      phase-difference discriminator.
-  2. `VisDetector` averages 10 ms blocks and checks the middle block of each 30 ms element.
+  2. `VisDetector` averages 5 ms blocks and judges each 30 ms element on its 4 inner blocks. In noise the tones are
+     **squeezed toward mid-band** (a real weak Robot 36 read 1781 Hz for the 1900 Hz leader and ~1250 Hz for the
+     1200 Hz sync bits), so the header is judged against itself, never against fixed frequencies:
+     - start and stop bits must agree and lie 350–900 Hz below the leader median;
+     - data bits split at their largest gap;
+     - the bit threshold may not lie below the sync level (that rejects misaligned matches);
+     - parity, and only codes of known modes (any code when `ForcedMode` is set).
+
+     Measured: 100 / 86 / 68 / 46 % of headers found at 3 / 2 / 1 / 0 dB SNR, versus 53 / 10 / 0 / 0 % for the old
+     detector; no false starts in 40 minutes of noise, and about 1 wrong-mode picture per 300 weak headers (others
+     are abandoned). Tests: `DecodesRealWeakHeader` (real off-air fixture in `tests/.../Data`), `FindsWeakHeaders`,
+     `NoFalseStartsInFiveMinutesOfNoise`. A median per block was tried and was far worse.
   3. `SstvDecoder` finds each sync-pulse *end* edge near its predicted position (±25 ms until two pulses are
      locked, then ±8 ms). It fits `syncEnd = a + b·period`, using least squares with outlier rejection once there
      are 6 or more points and capping slant at ±2 %.
@@ -54,9 +65,9 @@ dotnet test tests/SstvStudio.Tests --filter "FullyQualifiedName~EncoderTests.Ima
   - `Corrected(hz)` = hz × `Scale` − `_tuningOffsetHz`. A clock error scales tones by the same factor as time,
     and the residual tuning offset is the median sync tone minus 1200 Hz.
   Reception aids:
-  - `VisDetector` takes the tuning offset from the median of the leader blocks and checks every element relative
-    to it, up to ±250 Hz. `Begin` seeds `_tuningOffsetHz` with that offset, and the sync threshold follows it
-    (`SyncThreshold`).
+  - `VisDetector` takes the tuning offset (up to ±250 Hz) as the average of the leader's and the sync bits'
+    offsets, whose squeeze errors cancel. `Begin` seeds `_tuningOffsetHz` with that offset, and the sync threshold
+    follows it (`SyncThreshold`).
   - `StartManual(mode)` starts with the phase unknown: it searches whole periods without counting them until the
     first pulse locks, with no false-trigger check.
   - `ForcedMode` decodes every header as the given mode. `DetectVis = false` ignores headers.

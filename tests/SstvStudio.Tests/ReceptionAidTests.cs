@@ -94,9 +94,10 @@ public class ReceptionAidTests
     }
 
     [Fact]
-    public void ManualStartRecoversPicturesTooWeakForHeaderDetection()
+    public void ManualStartAndHeaderBothRecoverWeakPictures()
     {
-        // At this level the header is rarely detected (measured: 1 of 6), but the picture is still there.
+        // At this level the old fixed-window header detector found 0–1 of 6 pictures; the self-referencing one
+        // (VisDetector) finds 5 of 6. Manual start must still recover them when the header is lost.
         var mode = SstvModes.Robot36;
         int viaHeader = 0, viaManual = 0;
         for (var seed = 1; seed <= 6; seed++)
@@ -104,13 +105,15 @@ public class ReceptionAidTests
             var audio = Audio(mode, 48000, noise: 1.5, seed: seed);
             if (Decode(new SstvDecoder(48000), audio) is [{ Complete: true }]) viaHeader++;
 
+            // The audio includes the header: when it's heard, it takes over from the manual start (by design), which
+            // delivers the short manual part as partial. What counts is that a complete picture comes out.
             var decoder = new SstvDecoder(48000);
             decoder.StartManual(mode);
-            if (Decode(decoder, audio) is [{ Complete: true }]) viaManual++;
+            if (Decode(decoder, audio).Any(r => r.Complete && r.Mode == mode)) viaManual++;
         }
 
-        // Recovery at this level is statistical (measured 5–6 of 6), the header path 0–1 of 6.
-        Assert.InRange(viaHeader, 0, 2);
+        // Both are statistical at this level: measured 5 of 6 via the header, 5–6 of 6 with a manual start.
+        Assert.InRange(viaHeader, 4, 6);
         Assert.InRange(viaManual, 5, 6);
     }
 
