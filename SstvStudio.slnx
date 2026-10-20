@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SstvStudio.Core/SstvStudio.Core.csproj" />
+    <Project Path="src/SstvStudio.Hamlib/SstvStudio.Hamlib.csproj" />
+    <Project Path="src/SstvStudio.Wavelog/SstvStudio.Wavelog.csproj" />
+    <Project Path="src/SstvStudio/SstvStudio.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SstvStudio.Tests/SstvStudio.Tests.csproj" />
+  </Folder>
+</Solution>

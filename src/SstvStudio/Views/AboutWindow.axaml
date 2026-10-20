@@ -1,0 +1,83 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="SstvStudio.Views.AboutWindow"
+        Title="About SSTV Studio"
+        Icon="/Assets/app.ico"
+        Width="560" SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        Background="#1E1E2E">
+    <Window.Styles>
+        <Style Selector="TextBlock.key">
+            <Setter Property="Foreground" Value="#7F849C"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,2,14,2"/>
+        </Style>
+        <Style Selector="TextBlock.val">
+            <Setter Property="Foreground" Value="#CDD6F4"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Margin" Value="0,2"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style Selector="TextBlock.section">
+            <Setter Property="Foreground" Value="#6C7086"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="1"/>
+            <Setter Property="Margin" Value="0,18,0,6"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,6"/>
+        </Style>
+    </Window.Styles>
+
+    <StackPanel Margin="28,26,28,22">
+        <Grid ColumnDefinitions="Auto,*">
+            <Image Source="/Assets/logo.png" Width="84" Height="84" VerticalAlignment="Top"
+                   RenderOptions.BitmapInterpolationMode="HighQuality"/>
+            <StackPanel Grid.Column="1" Margin="20,2,0,0">
+                <TextBlock x:Name="ProductText" FontSize="26" FontWeight="Bold" Foreground="#CDD6F4"/>
+                <TextBlock x:Name="VersionText" FontSize="13" Foreground="#89B4FA" Margin="0,2,0,0"/>
+                <TextBlock x:Name="DescriptionText" FontSize="13" Foreground="#A6ADC8" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                <TextBlock x:Name="FeaturesText" FontSize="12" Foreground="#7F849C" TextWrapping="Wrap" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Grid>
+
+        <TextBlock Text="SYSTEM" Classes="section"/>
+        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+            <TextBlock Text="Build" Classes="key"/>
+            <TextBlock Grid.Column="1" x:Name="BuildText" Classes="val"/>
+            <TextBlock Grid.Row="1" Text="Runtime" Classes="key"/>
+            <TextBlock Grid.Row="1" Grid.Column="1" x:Name="RuntimeText" Classes="val"/>
+            <TextBlock Grid.Row="2" Text="UI framework" Classes="key"/>
+            <TextBlock Grid.Row="2" Grid.Column="1" x:Name="AvaloniaText" Classes="val"/>
+            <TextBlock Grid.Row="3" Text="Operating system" Classes="key"/>
+            <TextBlock Grid.Row="3" Grid.Column="1" x:Name="OsText" Classes="val"/>
+            <TextBlock Grid.Row="4" Text="Data folder" Classes="key"/>
+            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="DataText" Classes="val" FontFamily="Cascadia Code,Consolas,monospace"/>
+        </Grid>
+
+        <TextBlock Text="BUILT WITH" Classes="section"/>
+        <ItemsControl x:Name="CreditsList">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="x:Object">
+                    <TextBlock Classes="val" Text="{Binding}"/>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock x:Name="CopyrightText" FontSize="12" Foreground="#7F849C" Margin="0,18,0,0" TextWrapping="Wrap"/>
+
+        <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,18,0,0">
+            <Button Content="Copy system info" Click="CopyInfo_Click"
+                    ToolTip.Tip="Copies version, runtime and OS details for a bug report"/>
+            <Button Grid.Column="1" Content="Open data folder" Click="OpenData_Click" Margin="8,0,0,0"/>
+            <TextBlock Grid.Column="2" x:Name="CopiedText" FontSize="12" Foreground="#A6E3A1"
+                       VerticalAlignment="Center" Margin="10,0,0,0"/>
+            <Button Grid.Column="3" Content="Close" Click="Close_Click" IsDefault="True" IsCancel="True"
+                    Background="#89B4FA" Foreground="#1E1E2E" FontWeight="SemiBold"/>
+        </Grid>
+    </StackPanel>
+</Window>

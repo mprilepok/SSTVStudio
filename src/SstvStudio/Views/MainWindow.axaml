@@ -1,0 +1,840 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:SstvStudio.ViewModels"
+        xmlns:modes="using:SstvStudio.Core.Modes"
+        xmlns:services="using:SstvStudio.Services"
+        x:Class="SstvStudio.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/app.ico"
+        Title="SSTV Studio"
+        Width="1240" Height="820" MinWidth="960" MinHeight="640"
+        Background="#1E1E2E">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="Foreground" Value="#89B4FA"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,8,0,3"/>
+        </Style>
+        <Style Selector="TextBlock.section">
+            <Setter Property="Foreground" Value="#6C7086"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="LetterSpacing" Value="1"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="#7F849C"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style Selector="TextBlock.mono">
+            <Setter Property="FontFamily" Value="Cascadia Code,Consolas,monospace"/>
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="Background" Value="#313244"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="#A6E3A1"/>
+            <Setter Property="Foreground" Value="#1E1E2E"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="#F38BA8"/>
+            <Setter Property="Foreground" Value="#1E1E2E"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style Selector="Button.action">
+            <Setter Property="Background" Value="#89B4FA"/>
+            <Setter Property="Foreground" Value="#1E1E2E"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <!-- Picture viewers: fitted by default; with .actual shown at the zoom (LayoutTransformControl) and scrollable. -->
+        <Style Selector="ScrollViewer.zoom">
+            <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Disabled"/>
+        </Style>
+        <Style Selector="ScrollViewer.zoom.actual">
+            <Setter Property="HorizontalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+        </Style>
+        <Style Selector="ScrollViewer.zoom Image">
+            <Setter Property="Stretch" Value="Uniform"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="ScrollViewer.zoom.actual Image">
+            <Setter Property="Stretch" Value="None"/>
+        </Style>
+        <Style Selector="ScrollViewer.zoom LayoutTransformControl">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <!-- Zoom controls above a picture viewer: Fit · slider · value · 1:1. -->
+        <Style Selector="StackPanel.zoombar">
+            <Setter Property="Orientation" Value="Horizontal"/>
+            <Setter Property="Spacing" Value="6"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="StackPanel.zoombar Slider">
+            <Setter Property="Width" Value="130"/>
+            <Setter Property="Minimum" Value="25"/>
+            <Setter Property="Maximum" Value="400"/>
+            <Setter Property="TickFrequency" Value="25"/>
+            <Setter Property="IsSnapToTickEnabled" Value="True"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="StackPanel.zoombar > TextBlock">
+            <Setter Property="Width" Value="42"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Foreground" Value="#7F849C"/>
+        </Style>
+        <Style Selector="ListBox.chips">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBox.chips ListBoxItem">
+            <Setter Property="Padding" Value="14,5"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Background" Value="#313244"/>
+        </Style>
+        <Style Selector="ListBox.chips ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox.chips ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#89B4FA"/>
+            <Setter Property="Foreground" Value="#1E1E2E"/>
+        </Style>
+        <Style Selector="ListBox:not(.chips) ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter, ListBox:not(.chips) ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="#45475A"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="12,6"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- Header: app title + live rig status -->
+        <Border DockPanel.Dock="Top" Background="#181825" Padding="18,10">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <Image Source="/Assets/logo.png" Width="40" Height="40" RenderOptions.BitmapInterpolationMode="HighQuality"/>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="SSTV Studio" FontSize="20" FontWeight="Bold" Foreground="#CDD6F4"/>
+                        <TextBlock Text="Slow-scan TV transmit &amp; receive · Hamlib · Wavelog" Classes="hint"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="{Binding RigFrequency}" Classes="mono" FontSize="28" FontWeight="Bold"
+                               Foreground="#A6E3A1" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding RigMode}" Classes="mono" FontSize="16" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+                    <Border CornerRadius="4" Padding="10,4" Background="#313244" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding RigState}" Foreground="{Binding RigStateBrush}" FontWeight="SemiBold"
+                                   MaxWidth="320" TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                </StackPanel>
+
+                <Button Grid.Column="3" Command="{Binding ToggleRigCommand}" VerticalAlignment="Center">
+                    <Panel>
+                        <TextBlock Text="Connect rig" IsVisible="{Binding !RigRunning}"/>
+                        <TextBlock Text="Disconnect" IsVisible="{Binding RigRunning}"/>
+                    </Panel>
+                </Button>
+                <Button Grid.Column="4" Content="ⓘ" Click="About_Click" ToolTip.Tip="About SSTV Studio"
+                        FontSize="16" Padding="10,4" Margin="8,0,0,0" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Error banner -->
+        <Border DockPanel.Dock="Top" Background="#45273A" Padding="18,8"
+                IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="Dismiss" Command="{Binding DismissErrorCommand}" Margin="12,0,0,0"/>
+            </Grid>
+        </Border>
+
+        <TabControl Margin="10,4,10,10" SelectedIndex="{Binding SelectedTab}">
+            <!-- ====================================================== RECEIVE -->
+            <TabItem Header="Receive">
+                <Grid ColumnDefinitions="*,360" Margin="0,8,0,0" DataContext="{Binding Receive}" x:DataType="vm:ReceiveViewModel">
+                    <DockPanel Margin="0,0,12,0">
+                        <Border DockPanel.Dock="Bottom" Classes="card" Margin="0,4,0,0">
+                            <StackPanel>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Text="QSO" Classes="section"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Qso.StartText}" Classes="hint"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="1.4*,10,*,10,90,10,70,10,70,10,110">
+                                    <StackPanel>
+                                        <TextBlock Text="Callsign" Classes="label"/>
+                                        <TextBox Text="{Binding Qso.Call}" FontWeight="Bold" Classes="mono callsign" PlaceholderText="OK1ABC"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Name" Classes="label"/>
+                                        <TextBox Text="{Binding Qso.Name}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="Locator" Classes="label"/>
+                                        <TextBox Text="{Binding Qso.Grid}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="6">
+                                        <TextBlock Text="RSV sent" Classes="label"/>
+                                        <TextBox Text="{Binding Qso.RstSent}"
+                                                 ToolTip.Tip="Your report of their picture (Readability, Strength, Video)"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="8">
+                                        <TextBlock Text="RSV rcvd" Classes="label"/>
+                                        <TextBox Text="{Binding Qso.RstRcvd}" ToolTip.Tip="The report they gave you"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="10">
+                                        <TextBlock Text="Freq (MHz)" Classes="label"/>
+                                        <TextBox Text="{Binding Qso.FrequencyMHz}" Classes="mono"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                                    <TextBox Text="{Binding Qso.Comment}" PlaceholderText="Comment"/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="10,0,0,0">
+                                        <Button Classes="action" Content="Log QSO" Command="{Binding Qso.LogCommand}"/>
+                                        <Button Content="Clear" Command="{Binding Qso.ClearCommand}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="{Binding Qso.LogStatus}" Foreground="{Binding Qso.LogStatusBrush}" TextWrapping="Wrap"
+                                           FontSize="12" Margin="0,6,0,0"
+                                           IsVisible="{Binding Qso.LogStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <TextBlock Classes="hint" Margin="0,4,0,0"
+                                           Text="Shared with the Transmit tab: the callsign and reports appear in your reply overlay ({CALL}, {RST}, {NAME})."/>
+                            </StackPanel>
+                        </Border>
+
+                        <WrapPanel DockPanel.Dock="Bottom" Margin="0,0,0,4">
+                            <WrapPanel.Styles>
+                                <Style Selector="Button">
+                                    <Setter Property="Margin" Value="0,0,8,6"/>
+                                </Style>
+                            </WrapPanel.Styles>
+                            <Button Command="{Binding ToggleListeningCommand}" Classes="primary" IsVisible="{Binding !IsListening}"
+                                    Content="●  Start listening"/>
+                            <Button Command="{Binding ToggleListeningCommand}" Classes="danger" IsVisible="{Binding IsListening}"
+                                    Content="■  Stop listening"/>
+                            <Button Command="{Binding ToggleRecordingCommand}" IsVisible="{Binding !IsRecording}"
+                                    ToolTip.Tip="Record everything heard on the input to a WAV file in the save folder"
+                                    Content="●  Record"/>
+                            <Button Command="{Binding ToggleRecordingCommand}" IsVisible="{Binding IsRecording}" Classes="danger"
+                                    Content="■  Stop recording"/>
+                            <Button Command="{Binding FinishImageCommand}" IsVisible="{Binding IsReceiving}" Content="Finish picture now"/>
+                            <Button Content="Decode WAV…" Click="DecodeWav_Click" IsEnabled="{Binding !IsListening}"/>
+                            <Button Content="Save as…" Click="SaveReceived_Click" IsEnabled="{Binding HasSelection}"/>
+                            <Button Content="Save audio…" Click="SaveReceivedAudio_Click" IsEnabled="{Binding HasSelectedAudio}"
+                                    ToolTip.Tip="Save the audio of the selected picture as WAV"/>
+                            <Button Content="Use as TX picture" Command="{Binding UseAsTxCommand}" Classes="action"/>
+                            <Button Content="Open folder" Command="{Binding OpenFolderCommand}"/>
+                            <Button Content="Live view" Command="{Binding ShowLiveCommand}" IsVisible="{Binding HasSelection}"/>
+                            <StackPanel Classes="zoombar" DataContext="{Binding Zoom}" x:DataType="vm:ZoomViewModel">
+                                <CheckBox Content="Fit" IsChecked="{Binding IsFit}"
+                                          ToolTip.Tip="Fit pictures to the panel"/>
+                                <Slider Value="{Binding Percent}" ToolTip.Tip="Zoom (100 % = one picture pixel per screen pixel)"/>
+                                <TextBlock Text="{Binding Label}"/>
+                                <Button Content="1:1" Command="{Binding ActualSizeCommand}"
+                                        ToolTip.Tip="Actual size: one picture pixel per screen pixel"/>
+                            </StackPanel>
+                        </WrapPanel>
+
+                        <Border Background="#11111B" CornerRadius="8" Margin="0,0,0,10" Padding="10">
+                            <Panel>
+                                <ScrollViewer Classes="zoom" Classes.actual="{Binding !Zoom.IsFit}">
+                                    <LayoutTransformControl LayoutTransform="{Binding Zoom.Transform}">
+                                        <Image Source="{Binding DisplayImage}"/>
+                                    </LayoutTransformControl>
+                                </ScrollViewer>
+                                <TextBlock Text="Received pictures appear here" Classes="hint" FontSize="14"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           IsVisible="{Binding DisplayImage, Converter={x:Static ObjectConverters.IsNull}}"/>
+                            </Panel>
+                        </Border>
+                    </DockPanel>
+
+                    <DockPanel Grid.Column="1">
+                        <Border DockPanel.Dock="Top" Classes="card">
+                            <StackPanel>
+                                <TextBlock Text="RECEIVER" Classes="section"/>
+                                <TextBlock Text="{Binding Status}" Foreground="#CDD6F4" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding ModeText}" Classes="hint" Margin="0,2,0,0"/>
+                                <TextBlock Text="{Binding InputHealth}" Foreground="#F9E2AF" TextWrapping="Wrap" Margin="0,4,0,0"
+                                           IsVisible="{Binding InputHealth, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <TextBlock Text="{Binding RecordingText}" Foreground="#F38BA8" Classes="mono" Margin="0,4,0,0"
+                                           IsVisible="{Binding RecordingText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <ProgressBar Value="{Binding LineProgress}" Maximum="100" Height="8" Margin="0,8,0,0" Foreground="#A6E3A1"/>
+
+                                <Grid ColumnDefinitions="64,*,64" Margin="0,10,0,0">
+                                    <TextBlock Text="Input" Classes="hint" VerticalAlignment="Center"/>
+                                    <ProgressBar Grid.Column="1" Value="{Binding LevelPercent}" Maximum="100" Height="8" MinWidth="0"
+                                                 VerticalAlignment="Center" Foreground="{Binding LevelBrush}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding LevelText}" Classes="mono" HorizontalAlignment="Right"
+                                               VerticalAlignment="Center" Foreground="{Binding LevelBrush}"/>
+                                </Grid>
+
+                                <!-- Tuning aid: waterfall 1000-2500 Hz with SSTV tone markers -->
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,10,0,4">
+                                    <TextBlock Text="Waterfall" Classes="hint"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding FrequencyText}" Classes="mono" FontSize="11" Foreground="#CDD6F4"/>
+                                </Grid>
+                                <Border CornerRadius="4" ClipToBounds="True" Background="#11111B">
+                                    <Image Source="{Binding WaterfallImage}" Stretch="Fill" Height="90"
+                                           RenderOptions.BitmapInterpolationMode="LowQuality"/>
+                                </Border>
+                                <Grid ColumnDefinitions="200*,300*,400*,400*,200*" Margin="0,2,0,0">
+                                    <Grid.Styles>
+                                        <Style Selector="TextBlock">
+                                            <Setter Property="FontSize" Value="10"/>
+                                            <Setter Property="Margin" Value="-12,0,0,0"/>
+                                        </Style>
+                                    </Grid.Styles>
+                                    <TextBlock Grid.Column="1" Text="1200" Foreground="#F38BA8"/>
+                                    <TextBlock Grid.Column="2" Text="1500" Foreground="#7F849C"/>
+                                    <TextBlock Grid.Column="3" Text="1900" Foreground="#89B4FA"/>
+                                    <TextBlock Grid.Column="4" Text="2300" Foreground="#7F849C"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                                    <TextBlock Text="{Binding TuningText}" Foreground="{Binding TuningBrush}" TextWrapping="Wrap"
+                                               VerticalAlignment="Center" FontSize="12"/>
+                                    <Button Grid.Column="1" Content="Fix tuning" Command="{Binding FixTuningCommand}" Margin="8,0,0,0"
+                                            ToolTip.Tip="Moves the rig's dial (via Hamlib) so this station's next picture is centred"/>
+                                </Grid>
+                                <TextBlock Text="{Binding RetuneStatus}" Classes="hint" Margin="0,4,0,0"
+                                           IsVisible="{Binding RetuneStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                <TextBlock Classes="hint" Margin="0,4,0,0"
+                                           Text="Markers: sync 1200 (pink), black 1500, leader 1900 (blue), white 2300. Keep input around -30 to -10 dB."/>
+                                <TextBlock Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap" Margin="0,6,0,0"
+                                           IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border DockPanel.Dock="Top" Classes="card" Padding="14,6">
+                            <Expander Header="Tools: manual start · re-decode · filter" HorizontalAlignment="Stretch" Padding="14,12,14,14">
+                                <StackPanel>
+                                    <TextBlock Text="Missed the header? Start in a mode now:" Classes="hint"/>
+                                    <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                        <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding ManualMode}" HorizontalAlignment="Stretch"/>
+                                        <Button Grid.Column="1" Content="Start now" Command="{Binding StartManualCommand}" Margin="8,0,0,0"
+                                                ToolTip.Tip="Decodes from the next sync pulse in this mode (while listening)"/>
+                                    </Grid>
+
+                                    <TextBlock Text="Re-decode (selected picture's audio, and Decode WAV…)" Classes="hint" Margin="0,12,0,0"/>
+                                    <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                                        <Grid.Styles>
+                                            <Style Selector="TextBlock.k">
+                                                <Setter Property="Foreground" Value="#A6ADC8"/>
+                                                <Setter Property="FontSize" Value="12"/>
+                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                <Setter Property="Margin" Value="0,2,10,2"/>
+                                            </Style>
+                                        </Grid.Styles>
+                                        <TextBlock Text="Mode" Classes="k"/>
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding ModeChoices}" SelectedItem="{Binding RedecodeMode}"
+                                                  HorizontalAlignment="Stretch" Margin="0,2"/>
+                                        <TextBlock Grid.Row="1" Text="Shift (ms)" Classes="k"/>
+                                        <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding ShiftMs}" Minimum="-50" Maximum="50"
+                                                       Increment="0.5" FormatString="0.0" Margin="0,2"
+                                                       ToolTip.Tip="Positive moves the picture right"/>
+                                        <TextBlock Grid.Row="2" Text="Slant (ppm)" Classes="k"/>
+                                        <NumericUpDown Grid.Row="2" Grid.Column="1" Value="{Binding SlantPpm}" Minimum="-20000" Maximum="20000"
+                                                       Increment="100" FormatString="0" Margin="0,2"
+                                                       ToolTip.Tip="Added to the automatic slant correction"/>
+                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+                                        <Button Content="Re-decode selected" Command="{Binding RedecodeCommand}" Classes="action"/>
+                                        <Button Content="Reset" Command="{Binding ResetAdjustmentsCommand}"/>
+                                    </StackPanel>
+
+                                    <Grid ColumnDefinitions="Auto,*" Margin="0,12,0,0">
+                                        <TextBlock Text="Noise filter" Foreground="#A6ADC8" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding NoiseFilters}" SelectedIndex="{Binding NoiseFilterIndex}"
+                                                  HorizontalAlignment="Stretch"
+                                                  ToolTip.Tip="Low removes speckles (median); High also smooths grain. Applies to all received pictures."/>
+                                    </Grid>
+                                </StackPanel>
+                            </Expander>
+                        </Border>
+
+                        <Border Classes="card" Margin="0">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="RECEIVED" Classes="section"/>
+                                <TextBlock DockPanel.Dock="Top" Text="Nothing received yet." Classes="hint"
+                                           IsVisible="{Binding !Gallery.Count}"/>
+                                <ListBox ItemsSource="{Binding Gallery}" SelectedItem="{Binding Selected}" Background="Transparent">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:ReceivedPicture">
+                                            <Grid ColumnDefinitions="96,*">
+                                                <Image Source="{Binding Bitmap}" Width="88" Height="70" Stretch="Uniform"/>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="8,0,0,0">
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                                                    <TextBlock Text="{Binding Subtitle}" Classes="hint"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </DockPanel>
+                        </Border>
+                    </DockPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- ====================================================== TRANSMIT -->
+            <TabItem Header="Transmit">
+                <Grid ColumnDefinitions="*,400" Margin="0,8,0,0">
+                    <!-- Picture -->
+                    <DockPanel Margin="0,0,12,0">
+                        <Border DockPanel.Dock="Bottom" Classes="card" Padding="14,8">
+                            <Expander Header="Edit overlay profile" HorizontalAlignment="Stretch" Padding="14,12,14,14">
+                                <StackPanel>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBox Text="{Binding SelectedProfile.Name}" PlaceholderText="Profile name" FontWeight="SemiBold"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                                            <Button Content="New" Command="{Binding AddProfileCommand}"/>
+                                            <Button Content="Duplicate" Command="{Binding DuplicateProfileCommand}"/>
+                                            <Button Content="Delete" Command="{Binding DeleteProfileCommand}"/>
+                                            <Button Content="Restore defaults" Command="{Binding RestoreDefaultProfilesCommand}"
+                                                    ToolTip.Tip="Adds back missing CQ / Reply / 73 profiles"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Grid ColumnDefinitions="2*,124,58,48,34,34,98,92,30,30,30" Margin="0,10,0,2">
+                                        <Grid.Styles>
+                                            <Style Selector="TextBlock">
+                                                <Setter Property="Foreground" Value="#89B4FA"/>
+                                                <Setter Property="FontSize" Value="11"/>
+                                                <Setter Property="FontWeight" Value="SemiBold"/>
+                                            </Style>
+                                        </Grid.Styles>
+                                        <TextBlock Text="Text"/>
+                                        <TextBlock Grid.Column="1" Text="Font"/>
+                                        <TextBlock Grid.Column="2" Text="Size %"/>
+                                        <TextBlock Grid.Column="3" Text="Color"/>
+                                        <TextBlock Grid.Column="4" Text="B"/>
+                                        <TextBlock Grid.Column="5" Text="Out"/>
+                                        <TextBlock Grid.Column="6" Text="Position"/>
+                                        <TextBlock Grid.Column="7" Text="Align"/>
+                                        <TextBlock Grid.Column="8" Grid.ColumnSpan="2" Text="Order"/>
+                                    </Grid>
+                                    <ItemsControl x:Name="OverlayLines" ItemsSource="{Binding SelectedProfile.Lines}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="services:OverlayLine">
+                                                <Grid Classes="overlayRow" ColumnDefinitions="2*,124,58,48,34,34,98,92,30,30,30" Margin="0,2">
+                                                    <Grid.Styles>
+                                                        <Style Selector="Grid.overlayRow > :is(Control)">
+                                                            <Setter Property="Margin" Value="0,0,4,0"/>
+                                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        </Style>
+                                                    </Grid.Styles>
+                                                    <TextBox Text="{Binding Text}" PlaceholderText="{}{CALL} de {MYCALL}"/>
+                                                    <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                                              ItemsSource="{Binding #OverlayLines.((vm:MainWindowViewModel)DataContext).Fonts}"
+                                                              SelectedItem="{Binding FontFamily}">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate x:DataType="x:String">
+                                                                <TextBlock Text="{Binding}" FontFamily="{Binding}"/>
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                    <NumericUpDown Grid.Column="2" Value="{Binding SizePercent}" Minimum="3" Maximum="40"
+                                                                   Increment="1" FormatString="0" HorizontalAlignment="Stretch"
+                                                                   ShowButtonSpinner="False" HorizontalContentAlignment="Center"
+                                                                   ToolTip.Tip="Text height in % of the picture (type, or use ↑/↓ or the mouse wheel)"/>
+                                                    <ColorPicker Grid.Column="3" Color="{Binding ColorValue}" IsAlphaVisible="False"/>
+                                                    <ToggleButton Grid.Column="4" Content="B" FontWeight="Bold" IsChecked="{Binding Bold}"
+                                                                  ToolTip.Tip="Bold" Padding="6,4"/>
+                                                    <ToggleButton Grid.Column="5" Content="O" IsChecked="{Binding Outline}"
+                                                                  ToolTip.Tip="Black outline (keeps text readable on any picture)" Padding="6,4"/>
+                                                    <ComboBox Grid.Column="6" HorizontalAlignment="Stretch"
+                                                              ItemsSource="{Binding #OverlayLines.((vm:MainWindowViewModel)DataContext).OverlayPositions}"
+                                                              SelectedItem="{Binding Position}"/>
+                                                    <ComboBox Grid.Column="7" HorizontalAlignment="Stretch"
+                                                              ItemsSource="{Binding #OverlayLines.((vm:MainWindowViewModel)DataContext).OverlayAligns}"
+                                                              SelectedItem="{Binding Align}"/>
+                                                    <Button Grid.Column="8" Content="▲" Padding="6,4" ToolTip.Tip="Move up"
+                                                            Command="{Binding #OverlayLines.((vm:MainWindowViewModel)DataContext).MoveOverlayLineUpCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Grid.Column="9" Content="▼" Padding="6,4" ToolTip.Tip="Move down"
+                                                            Command="{Binding #OverlayLines.((vm:MainWindowViewModel)DataContext).MoveOverlayLineDownCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <Button Grid.Column="10" Content="✕" Padding="6,4" ToolTip.Tip="Remove line"
+                                                            Command="{Binding #OverlayLines.((vm:MainWindowViewModel)DataContext).RemoveOverlayLineCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <Button Content="+ Add line" Command="{Binding AddOverlayLineCommand}" Margin="0,6,0,0"/>
+                                    <TextBlock Classes="hint" Margin="0,8,0,0"
+                                               Text="Placeholders: {CALL} {MYCALL} {RST} {NAME} {GRID} {MYGRID} {MODE} {DATE} {TIME} {FREQ}. A line whose placeholders are all empty is hidden. Lines at the same position stack in list order."/>
+                                </StackPanel>
+                            </Expander>
+                        </Border>
+
+                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
+                            <Button Content="Open picture…" Click="OpenImage_Click" Classes="action"/>
+                            <Button Content="Test pattern" Command="{Binding UseTestPatternCommand}"/>
+                            <Button Content="Export WAV…" Click="ExportWav_Click"/>
+                            <TextBlock Text="{Binding ImageName}" Classes="hint" VerticalAlignment="Center" Margin="8,0,0,0"
+                                       TextTrimming="CharacterEllipsis" MaxWidth="300"/>
+                        </StackPanel>
+
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+                            <TextBlock Text="OVERLAY" Classes="section" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <ListBox Grid.Column="1" Classes="chips" ItemsSource="{Binding Settings.OverlayProfiles}"
+                                     SelectedItem="{Binding SelectedProfile}" VerticalAlignment="Center">
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel/>
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="services:OverlayProfile">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                <StackPanel Classes="zoombar" DataContext="{Binding TxZoom}" x:DataType="vm:ZoomViewModel" Margin="0,0,10,0">
+                                    <CheckBox Content="Fit" IsChecked="{Binding IsFit}"
+                                              ToolTip.Tip="Fit the preview to the panel"/>
+                                    <Slider Value="{Binding Percent}" ToolTip.Tip="Zoom (100 % = one picture pixel per screen pixel)"/>
+                                    <TextBlock Text="{Binding Label}"/>
+                                    <Button Content="1:1" Command="{Binding ActualSizeCommand}"
+                                            ToolTip.Tip="Actual size: one picture pixel per screen pixel"/>
+                                </StackPanel>
+                                <TextBlock Text="Scaling" Classes="hint" VerticalAlignment="Center"/>
+                                <ComboBox ItemsSource="{Binding FitModes}" SelectedItem="{Binding Settings.ImageFit}" Width="110"
+                                          VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <Border Background="#11111B" CornerRadius="8" Margin="0,0,0,10" Padding="10">
+                            <ScrollViewer Classes="zoom" Classes.actual="{Binding !TxZoom.IsFit}">
+                                <LayoutTransformControl LayoutTransform="{Binding TxZoom.Transform}">
+                                    <Image Source="{Binding Preview}"/>
+                                </LayoutTransformControl>
+                            </ScrollViewer>
+                        </Border>
+                    </DockPanel>
+
+                    <!-- Controls -->
+                    <ScrollViewer Grid.Column="1">
+                        <StackPanel>
+                            <Border Classes="card">
+                                <StackPanel>
+                                    <TextBlock Text="MODE" Classes="section"/>
+                                    <ComboBox ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}"
+                                              HorizontalAlignment="Stretch" IsEnabled="{Binding !IsTransmitting}">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate x:DataType="modes:SstvMode">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Description}" Classes="hint" Margin="12,0,0,0"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                    <TextBlock Text="{Binding ModeInfo}" Classes="hint" Margin="0,6,0,0"/>
+                                    <WrapPanel Margin="0,6,0,0">
+                                        <CheckBox Content="Calibration preamble" IsChecked="{Binding Settings.SendPreamble}" Margin="0,0,16,0"/>
+                                        <CheckBox Content="CW ID after picture" IsChecked="{Binding Settings.SendCwId}"/>
+                                    </WrapPanel>
+                                    <TextBlock Text="TX audio level" Classes="label"/>
+                                    <Grid ColumnDefinitions="*,48">
+                                        <Slider Minimum="5" Maximum="100" Value="{Binding Settings.TxLevelPercent}"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Settings.TxLevelPercent, StringFormat={}{0:0} %}"
+                                                   VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#CDD6F4"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="card">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="TRANSMIT" Classes="section"/>
+                                    <Button Classes="primary" Command="{Binding TransmitCommand}" IsVisible="{Binding !IsTransmitting}"
+                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="0,12"
+                                            FontSize="16" Content="▶  TRANSMIT"/>
+                                    <Button Classes="danger" Command="{Binding StopCommand}" IsVisible="{Binding IsTransmitting}"
+                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="0,12"
+                                            FontSize="16" Content="■  STOP &amp; UNKEY"/>
+                                    <ProgressBar Value="{Binding TxProgress}" Maximum="100" Height="8" Foreground="#F38BA8"/>
+                                    <TextBlock Text="{Binding TxStatus}" Classes="mono" Foreground="#CDD6F4"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="card">
+                                <StackPanel>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="TX METERS" Classes="section"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding PowerSettingText}" Classes="hint"/>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="64,*,72" RowDefinitions="28,28,28,28" Margin="0,4,0,0">
+                                        <TextBlock Grid.Row="0" Text="Power" Classes="hint" VerticalAlignment="Center"/>
+                                        <ProgressBar Grid.Row="0" Grid.Column="1" Value="{Binding PowerBar}" Maximum="100" Height="8"
+                                                     MinWidth="0" VerticalAlignment="Center" Foreground="#89B4FA"/>
+                                        <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding PowerText}" Classes="mono" FontSize="15"
+                                                   FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="#CDD6F4"/>
+                                        <TextBlock Grid.Row="1" Text="SWR" Classes="hint" VerticalAlignment="Center"/>
+                                        <ProgressBar Grid.Row="1" Grid.Column="1" Value="{Binding SwrBar}" Maximum="100" Height="8"
+                                                     MinWidth="0" VerticalAlignment="Center" Foreground="{Binding SwrBrush}"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding SwrText}" Classes="mono" FontSize="15"
+                                                   FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{Binding SwrBrush}"/>
+                                        <TextBlock Grid.Row="2" Text="ALC" Classes="hint" VerticalAlignment="Center"/>
+                                        <ProgressBar Grid.Row="2" Grid.Column="1" Value="{Binding AlcBar}" Maximum="100" Height="8"
+                                                     MinWidth="0" VerticalAlignment="Center" Foreground="{Binding AlcBrush}"/>
+                                        <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding AlcText}" Classes="mono" FontSize="15"
+                                                   FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{Binding AlcBrush}"/>
+                                        <TextBlock Grid.Row="3" Text="Current" Classes="hint" VerticalAlignment="Center"/>
+                                        <ProgressBar Grid.Row="3" Grid.Column="1" Value="{Binding CurrentBar}" Maximum="100" Height="8"
+                                                     MinWidth="0" VerticalAlignment="Center" Foreground="#89B4FA"/>
+                                        <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding CurrentText}" Classes="mono" FontSize="15"
+                                                   FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="#CDD6F4"/>
+                                    </Grid>
+                                    <TextBlock Text="{Binding LastTxSummary}" Classes="hint" Margin="0,6,0,0"
+                                               IsVisible="{Binding LastTxSummary, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                    <TextBlock Classes="hint" Margin="0,4,0,0"
+                                               Text="Keep ALC near 0 % for SSTV — lower the TX audio level if it rises."/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="card">
+                                <StackPanel>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="QSO" Classes="section"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Qso.StartText}" Classes="hint"/>
+                                    </Grid>
+                                    <TextBlock Text="Callsign" Classes="label"/>
+                                    <TextBox Text="{Binding Qso.Call}" FontSize="20" FontWeight="Bold" Classes="mono callsign"
+                                             PlaceholderText="OK1ABC"/>
+                                    <Grid ColumnDefinitions="*,10,*">
+                                        <StackPanel>
+                                            <TextBlock Text="Name" Classes="label"/>
+                                            <TextBox Text="{Binding Qso.Name}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Locator" Classes="label"/>
+                                            <TextBox Text="{Binding Qso.Grid}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,10,*,10,1.4*">
+                                        <StackPanel>
+                                            <TextBlock Text="RSV sent" Classes="label"/>
+                                            <TextBox Text="{Binding Qso.RstSent}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="RSV rcvd" Classes="label"/>
+                                            <TextBox Text="{Binding Qso.RstRcvd}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="4">
+                                            <TextBlock Text="Freq (MHz)" Classes="label"/>
+                                            <TextBox Text="{Binding Qso.FrequencyMHz}" Classes="mono"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <TextBlock Text="Comment" Classes="label"/>
+                                    <TextBox Text="{Binding Qso.Comment}"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+                                        <Button Classes="action" Content="Log QSO" Command="{Binding Qso.LogCommand}"/>
+                                        <Button Content="Clear" Command="{Binding Qso.ClearCommand}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Qso.LogStatus}" Foreground="{Binding Qso.LogStatusBrush}"
+                                               TextWrapping="Wrap" Margin="0,8,0,0" FontSize="12"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Classes="card">
+                                <StackPanel>
+                                    <TextBlock Text="THIS SESSION" Classes="section"/>
+                                    <TextBlock Text="No QSOs logged yet." Classes="hint"
+                                               IsVisible="{Binding !Qso.Recent.Count}"/>
+                                    <ItemsControl ItemsSource="{Binding Qso.Recent}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <TextBlock Text="{Binding}" Classes="mono" FontSize="12" Foreground="#CDD6F4" Margin="0,2"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+
+            <!-- ====================================================== SETTINGS -->
+            <TabItem Header="Settings">
+                <ScrollViewer Margin="0,8,0,0">
+                    <StackPanel MaxWidth="1100" HorizontalAlignment="Left">
+                        <Grid ColumnDefinitions="*,12,*">
+                            <StackPanel>
+                                <Border Classes="card">
+                                    <StackPanel>
+                                        <TextBlock Text="STATION" Classes="section"/>
+                                        <Grid ColumnDefinitions="*,10,*,10,*">
+                                            <StackPanel>
+                                                <TextBlock Text="My callsign" Classes="label"/>
+                                                <TextBox Text="{Binding Settings.MyCall}" Classes="mono callsign"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="My locator" Classes="label"/>
+                                                <TextBox Text="{Binding Settings.MyGrid}" Classes="mono"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="4">
+                                                <TextBlock Text="TX power (W)" Classes="label"/>
+                                                <TextBox Text="{Binding Settings.TxPowerW}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Text="CW ID speed (WPM)" Classes="label"/>
+                                        <TextBox Text="{Binding Settings.CwWpm}" Width="100" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="card">
+                                    <StackPanel>
+                                        <TextBlock Text="RIG CONTROL · HAMLIB RIGCTLD" Classes="section"/>
+                                        <Grid ColumnDefinitions="*,10,100">
+                                            <StackPanel>
+                                                <TextBlock Text="Host" Classes="label"/>
+                                                <TextBox Text="{Binding Settings.RigHost}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Port" Classes="label"/>
+                                                <TextBox Text="{Binding Settings.RigPort}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <CheckBox Content="Connect on startup" IsChecked="{Binding Settings.RigAutoConnect}" Margin="0,8,0,0"/>
+                                        <TextBlock Classes="hint" Margin="0,4,0,0"
+                                                   Text="Start rigctld first, e.g.  rigctld -m 3073 -r COM5 -s 38400  (rigctld -l lists models)."/>
+
+                                        <TextBlock Text="PTT" Classes="label" Margin="0,14,0,3"/>
+                                        <Grid ColumnDefinitions="*,10,*">
+                                            <ComboBox ItemsSource="{Binding PttMethods}" SelectedItem="{Binding Settings.PttMethod}"
+                                                      HorizontalAlignment="Stretch"/>
+                                            <ComboBox Grid.Column="2" ItemsSource="{Binding SerialPorts}" SelectedItem="{Binding Settings.SerialPort}"
+                                                      HorizontalAlignment="Stretch" PlaceholderText="Serial port (RTS/DTR)"/>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,10,*,10,*,10,*">
+                                            <StackPanel>
+                                                <TextBlock Text="PTT lead (ms)" Classes="label"/>
+                                                <TextBox Text="{Binding Settings.PttLeadMs}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="PTT tail (ms)" Classes="label"/>
+                                                <TextBox Text="{Binding Settings.PttTailMs}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="4">
+                                                <TextBlock Text="TX watchdog (s)" Classes="label"/>
+                                                <TextBox Text="{Binding Settings.MaxTxSeconds}"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="6">
+                                                <TextBlock Text="SWR trip (0 = off)" Classes="label"/>
+                                                <TextBox Text="{Binding Settings.SwrTripLevel}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="card">
+                                    <StackPanel>
+                                        <TextBlock Text="BACKUP · SETTINGS AND LOG" Classes="section"/>
+                                        <TextBlock Text="Settings" Classes="label"/>
+                                        <WrapPanel>
+                                            <Button Content="Export settings…" Click="ExportSettings_Click" Margin="0,0,8,6"/>
+                                            <Button Content="Import settings…" Click="ImportSettings_Click" Margin="0,0,8,6"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding LogSummary}" Classes="label"/>
+                                        <WrapPanel>
+                                            <Button Content="Export log (ADIF)…" Click="ExportLog_Click" Margin="0,0,8,6"/>
+                                            <Button Content="Start new log" Command="{Binding NewLogCommand}" Margin="0,0,8,6"
+                                                    ToolTip.Tip="The current log is kept in the data folder under a dated name"/>
+                                            <Button Content="Open data folder" Command="{Binding OpenDataFolderCommand}" Margin="0,0,8,6"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding DataStatus}" Classes="hint" Margin="0,2,0,0"
+                                                   IsVisible="{Binding DataStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                        <TextBlock Classes="hint" Margin="0,4,0,0"
+                                                   Text="Exported settings include your Wavelog API key, so keep the file private. Starting a new log never deletes the old one."/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="2">
+                                <Border Classes="card">
+                                    <StackPanel>
+                                        <TextBlock Text="AUDIO OUTPUT" Classes="section"/>
+                                        <TextBlock Text="Device (rig USB codec)" Classes="label"/>
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <ComboBox ItemsSource="{Binding AudioDevices}" SelectedItem="{Binding Settings.AudioDevice}"
+                                                      HorizontalAlignment="Stretch"/>
+                                            <Button Grid.Column="1" Content="Refresh" Command="{Binding RefreshDevicesCommand}" Margin="8,0,0,0"/>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,10,*">
+                                            <StackPanel>
+                                                <TextBlock Text="Sample rate" Classes="label"/>
+                                                <ComboBox ItemsSource="{Binding SampleRates}" SelectedItem="{Binding Settings.SampleRate}"
+                                                          HorizontalAlignment="Stretch"/>
+                                            </StackPanel>
+                                            <StackPanel Grid.Column="2">
+                                                <TextBlock Text="Clock correction (ppm)" Classes="label"/>
+                                                <TextBox Text="{Binding Settings.ClockPpm}"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <TextBlock Classes="hint" Margin="0,6,0,0"
+                                                   Text="If receivers see a slanted picture, adjust the ppm value (positive = sound card runs fast)."/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="card">
+                                    <StackPanel>
+                                        <TextBlock Text="RECEIVE" Classes="section"/>
+                                        <TextBlock Text="Input device (rig USB codec)" Classes="label"/>
+                                        <ComboBox ItemsSource="{Binding Receive.InputDevices}" SelectedItem="{Binding Settings.RxAudioDevice}"
+                                                  HorizontalAlignment="Stretch"/>
+                                        <WrapPanel Margin="0,8,0,0">
+                                            <CheckBox Content="Start listening on launch" IsChecked="{Binding Settings.RxAutoStart}" Margin="0,0,16,0"/>
+                                            <CheckBox Content="Auto-save received pictures" IsChecked="{Binding Settings.RxAutoSave}" Margin="0,0,16,0"/>
+                                            <CheckBox Content="…with their audio (WAV)" IsChecked="{Binding Settings.RxSaveAudio}"
+                                                      IsEnabled="{Binding Settings.RxAutoSave}"/>
+                                        </WrapPanel>
+                                        <TextBlock Text="Save folder" Classes="label"/>
+                                        <TextBox Text="{Binding Settings.RxSaveFolder}"/>
+                                        <TextBlock Classes="hint" Margin="0,6,0,0"
+                                                   Text="Uses the sample rate above. Reception (and recording) is muted while transmitting. Restart listening after changing the device. Picture audio starts ~3 s before the VIS header so the WAV can be decoded again."/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Classes="card">
+                                    <StackPanel>
+                                        <TextBlock Text="WAVELOG" Classes="section"/>
+                                        <TextBlock Text="Wavelog URL" Classes="label"/>
+                                        <TextBox Text="{Binding Settings.WavelogUrl}" PlaceholderText="https://log.example.com"/>
+                                        <TextBlock Text="API key (read/write)" Classes="label"/>
+                                        <TextBox Text="{Binding Settings.WavelogApiKey}" PasswordChar="•" Classes="mono"/>
+                                        <TextBlock Text="Station profile" Classes="label"/>
+                                        <Grid ColumnDefinitions="*,Auto,10,80">
+                                            <ComboBox ItemsSource="{Binding Stations}" SelectedItem="{Binding SelectedStation}"
+                                                      HorizontalAlignment="Stretch" PlaceholderText="Load profiles from Wavelog →"/>
+                                            <Button Grid.Column="1" Content="Load" Command="{Binding LoadStationsCommand}" Margin="8,0,0,0"/>
+                                            <TextBox Grid.Column="3" Text="{Binding Settings.WavelogStationId}" PlaceholderText="ID"/>
+                                        </Grid>
+                                        <CheckBox Content="Push rig frequency/mode to Wavelog (live CAT)"
+                                                  IsChecked="{Binding Settings.WavelogPushRadio}" Margin="0,8,0,0"/>
+                                        <TextBlock Text="{Binding WavelogStatus}" Classes="hint" Margin="0,6,0,0"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Button Classes="action" Content="Save settings" Command="{Binding SaveSettingsCommand}"
+                                        HorizontalAlignment="Right"/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>
