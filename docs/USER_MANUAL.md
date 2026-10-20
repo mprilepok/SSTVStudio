@@ -310,7 +310,7 @@ give higher resolution. See the [mode table](#111-modes).
 |---|---|
 | **Calibration preamble** | Sends 0.8 s of tones before the header, as MMSSTV does. Leave it on. |
 | **CW ID after picture** | Sends `DE <your call>` in Morse after the picture, at the CW ID speed from Settings. |
-| **TX audio level** | Output level from 5 to 100 %. Set it so the rig shows little or no ALC; see [section 9](#9-getting-a-clean-signal). It can be changed during a transmission. |
+| **TX audio level** | Output level from 5 to 100 %. Set it so the rig shows little or no ALC; see [section 9](#9-getting-a-clean-signal). Drag the slider, or point at it and turn the mouse wheel (1 % per notch). It can be changed during a transmission. |
 
 ### 5.3 Transmit
 
@@ -524,6 +524,9 @@ received picture is still slightly slanted, use **Tools → Re-decode** with a *
 | **Decode WAV… is greyed out** | Stop listening first. |
 | **Wavelog: "missing api key" / 401** | Use a **read/write** API key and check the URL. |
 | **Wavelog unreachable** | The QSO is still in `log.adi`; import that file into Wavelog later. |
+| **Banner: "Something went wrong (…)"** | An unexpected error was logged, and the program kept running. Click **Open log** and send `errors.log` with your bug report. |
+| **Banner: "Your settings file couldn't be read…"** | `settings.json` was damaged (for example by a power cut). The last good copy is in use; the damaged file is kept as `settings-unreadable-….json`. Check your settings and click **Save settings**. |
+| **A Settings field turns red with a range, e.g. "Whole number, 1 to 65535"** | The text isn't a number in that range, so it wasn't applied. The previous value stays in use until you correct it. |
 
 ---
 
@@ -573,6 +576,9 @@ These are popular calling frequencies; check your national band plan.
 | Local QSO log (ADIF) | `log.adi` in the data folder |
 | Earlier logs (after **Start new log**) | `log_<date>_<time>Z.adi` in the data folder |
 | Settings before the last import | `settings-before-import.json` in the data folder |
+| Last settings that loaded cleanly | `settings.json.bak` in the data folder |
+| Unreadable settings, set aside | `settings-unreadable-<date>_<time>Z.json` in the data folder |
+| Error log (for bug reports) | `errors.log` (and `errors.log.old`) in the data folder |
 | Received pictures, audio, recordings | The **Save folder** (default `Pictures\SstvStudio`) |
 
 **ⓘ → Open data folder** or **Settings → Open data folder** opens the data folder.

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 OM1PU
 
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
@@ -18,12 +20,24 @@ public partial class MainWindow : Window
         InitializeComponent();
         Closing += OnClosing;
         AddHandler(TextBox.TextChangedEvent, UpperCaseCallsign);
+        // Tunnel: the window sees the wheel before the panel's ScrollViewer, so it adjusts instead of scrolling.
+        AddHandler(PointerWheelChangedEvent, WheelAdjustsSlider, RoutingStrategies.Tunnel);
         DataContextChanged += (_, _) =>
         {
             if (DataContext is not MainWindowViewModel vm) return;
             vm.TxZoom.PropertyChanged += RemeasureZoomViewers;
             vm.Receive.Zoom.PropertyChanged += RemeasureZoomViewers;
         };
+    }
+
+    // Sliders with the "wheel" class (TX audio level) move one SmallChange per wheel notch under the pointer.
+    private static void WheelAdjustsSlider(object? sender, PointerWheelEventArgs e)
+    {
+        if (e.Source is not Visual source) return;
+        var slider = source as Slider ?? source.FindAncestorOfType<Slider>();
+        if (slider is null || !slider.Classes.Contains("wheel") || !slider.IsEnabled || e.Delta.Y == 0) return;
+        slider.Value = Math.Clamp(Math.Round(slider.Value + Math.Sign(e.Delta.Y) * slider.SmallChange), slider.Minimum, slider.Maximum);
+        e.Handled = true;
     }
 
     // LayoutTransformControl keeps its old size when its picture switches between fitted and zoomed (the

@@ -38,13 +38,18 @@ dotnet test tests/SstvStudio.Tests --filter "FullyQualifiedName~EncoderTests.Ima
     tones below 1500 Hz.
   Either way `EndInterrupted` delivers the picture as partial, keeping lines up to the last sync and blanking the rest.
   Tracking rules (each one fixed a real off-air failure; tests: `TracksLargeSenderClockError`,
-  `KeepsReceivingWeakFadingPicture`):
-  - The line period is fitted from the **second** locked pulse on. Never assume nominal timing until 6 pulses:
+  `KeepsReceivingWeakFadingPicture`, `FirstSyncIsNotFooledByNoiseInTheVisStopBit`):
+  - **A lone pulse never moves the timing.** Until two locked pulses agree (`Confirm()`: whole periods apart within
+    2 ms + `MaxSlant` × period × gap), timing stays on the VIS prediction with the wide window, and
+    non-fitting pulses are dropped once a pair agrees. A noise blip in Robot's VIS stop bit, which runs into the
+    first sync, used to re-anchor everything ~30 ms early and drop ~2 % of pictures. Manual start is the
+    exception: its first pulse sets the phase.
+  - The line period is fitted from the confirming pair on. Never assume nominal timing until 6 pulses:
     a real Martin M1 sender was 1 % slow (450.8 ms lines), and nominal timing lost it by line 2.
   - The sync search half-width is `SearchWindowMs()` = 10 ms + `MaxSlant` (3 %) × period × periods since the last
-    lock (25 ms base before any lock), capped at 0.4 × period.
-  - Presence uses its own narrow window (`LockedWindowMs` / `InitialWindowMs`), the same width for sync and
-    control. If the wide search window is used here, noise looks present; if a narrow control is paired with a wide
+    lock (25 ms base until confirmed), capped at 0.4 × period.
+  - Presence uses its own window (`LockedWindowMs` once confirmed, `InitialWindowMs` before), the same width for
+    sync and control. If the wide search window is used here, noise looks present; if a narrow control is paired with a wide
     search, the trailing noise is kept.
   - `Corrected(hz)` = hz × `Scale` − `_tuningOffsetHz`. A clock error scales tones by the same factor as time,
     and the residual tuning offset is the median sync tone minus 1200 Hz.
@@ -109,6 +114,18 @@ dotnet test tests/SstvStudio.Tests --filter "FullyQualifiedName~EncoderTests.Ima
   `log.adi` to `log_yyyyMMdd_HHmmssZ.adi` and never deletes it. Tests that touch `AppSettings` or `QsoLogger`
   belong in `UiTests`: its static `DataDir` sets `SSTVSTUDIO_DATA_DIR` before `AppSettings.DataDirectory` is
   first read.
+  Reliability:
+  - `ErrorLog` (`Services/ErrorLog.cs`) appends unexpected errors to `errors.log` in the data folder. It starts
+    afresh at 1 MB, keeping `.old`, and writes the same error repeated within 10 s only once. Hooks:
+    `Dispatcher.UIThread.UnhandledException` (marked handled, so the app survives) in `App`; unhandled and
+    unobserved-task exceptions in `Program`; the `ReceiveService` worker, which logs and goes on to the next
+    chunk. `ErrorLog.Logged` shows the top banner with **Open log**.
+  - `AppSettings.Load` copies a cleanly loaded `settings.json` to `settings.json.bak`. An unreadable file is
+    renamed to `settings-unreadable-<time>Z.json`, the backup (or defaults) is used, and `LoadProblem` is shown in
+    the banner. `Save` writes a `.tmp` file and swaps it in.
+  - Number fields on the Settings tab bind to `MainWindowViewModel.Numbers` (`NumberField`): text that's out of
+    range throws in the setter, and Avalonia shows the range under the field. Don't use a converter that returns
+    or throws: compiled bindings in Avalonia 12 then show a raw cast exception.
   Tabs are Receive, Transmit, Settings (`MainWindowViewModel.ReceiveTab`, `TransmitTab`, `SettingsTab`), and the app
   opens on Receive. The QSO being worked lives in `QsoViewModel` (exposed as `MainWindowViewModel.Qso` and
   `ReceiveViewModel.Qso`). Both tabs' QSO forms bind `Qso.*`; the main view model redraws the overlay when a QSO
@@ -136,6 +153,11 @@ projects such as QSSTV: it couldn't go into a commercial edition.
 - **UI tests run headless** (`UiTests.cs`, `Avalonia.Headless`, `HeadlessUnitTestSession`). They use the real
   `MainWindow` and view models with `SSTVSTUDIO_DATA_DIR` pointing at a temp folder, so the operator's settings
   (auto-listen, rig auto-connect) are never used.
+- **Check UI changes in a render, not only by asserts.** In a headless test, `window.CaptureRenderedFrame()` saved
+  as a PNG shows what a user sees. This caught misaligned rows and an exception dump shown as a validation message,
+  where the asserts had passed.
+- **Timing-sensitive tests wait for a condition, not a fixed delay.** `ReceptionBenchmark` runs in its own
+  collection with parallel test runs disabled, because its parallel decoding starved the fake-rigctld tests.
 - **Never test a live window with global mouse or keyboard injection.** The operator's own instance is often in
   front and on the air. To try live reception without a radio, use `SSTVSTUDIO_SIMULATED_INPUT` together with
   `SSTVSTUDIO_DATA_DIR`.

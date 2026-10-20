@@ -258,13 +258,13 @@ public class DecoderTests
     }
 
     /// <summary>
-    /// Known issue (≈ 2 % of Robot 36 pictures at 10 dB SNR are dropped): Robot's VIS stop bit runs straight into
-    /// the first 1200 Hz sync, and a 1 ms noise blip inside that long tone looks like the end of a sync pulse.
-    /// The first pulse then locks ~30 ms early, the next ones are missed, and the picture is abandoned.
-    /// These are the benchmark's noise seeds that trigger it. Judging the edge over 3 ms fixes these seeds but
-    /// broke manual start and cost Scottie with a carrier, so the fix still needs work (docs/TODO.md).
+    /// Regression (≈ 2 % of Robot 36 pictures at 10 dB SNR were dropped): Robot's VIS stop bit runs straight into
+    /// the first 1200 Hz sync, and a 1 ms noise blip inside that long tone looked like the end of a sync pulse.
+    /// The timing followed that one pulse ~30 ms early, the next ones were missed, and the picture was
+    /// abandoned. Now a lone pulse never moves the timing; two must agree first. These are the benchmark's
+    /// noise seeds that triggered it.
     /// </summary>
-    [Theory(Skip = "Known issue: first-sync false edge in the VIS stop bit, see docs/TODO.md")]
+    [Theory]
     [InlineData("SNR 10 dB", 10.0, 0.0, 14)]
     [InlineData("clock +300 ppm, SNR 10", 10.0, 300.0, 7)]
     public void FirstSyncIsNotFooledByNoiseInTheVisStopBit(string name, double snrDb, double clockPpm, int seed)

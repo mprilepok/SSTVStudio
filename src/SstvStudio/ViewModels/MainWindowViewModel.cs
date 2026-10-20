@@ -53,12 +53,15 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
         _logger = new QsoLogger(_wavelog);
         _rig.StatusChanged += s => Dispatcher.UIThread.Post(() => OnRigStatus(s));
         Qso = new QsoViewModel(_logger, Settings, () => SelectedMode);
+        Numbers = new SettingsNumbers(Settings);
         TxZoom = new ZoomViewModel(Settings, nameof(AppSettings.TxZoomPercent), () => Settings.TxZoomPercent, v => Settings.TxZoomPercent = v);
         Qso.PropertyChanged += OnQsoChanged;
         Receive = new ReceiveViewModel(Settings, Qso);
         Receive.UseAsTxRequested += UseReceivedPicture;
         Receive.RetuneRequested += RetuneAsync;
         Receive.DialProvider = () => _rig.Status is { Connected: true } s ? new RigDial(s.FrequencyHz, s.Mode) : null;
+        ErrorLog.Logged += OnErrorLogged;
+        ErrorMessage = Settings.LoadProblem;
         _progressTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(250), DispatcherPriority.Background, (_, _) => UpdateProgress());
 
         _selectedMode = SstvModes.Find(Settings.ModeName) ?? SstvModes.MartinM1;
@@ -80,6 +83,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     public AppSettings Settings { get; }
     public ReceiveViewModel Receive { get; }
     public QsoViewModel Qso { get; }
+    /// <summary>The Settings tab's number fields, checked against their ranges.</summary>
+    public SettingsNumbers Numbers { get; }
     /// <summary>Zoom of the TX preview.</summary>
     public ZoomViewModel TxZoom { get; }
     // Tab order: Receive first (the app opens on it), then Transmit, then Settings.
@@ -119,6 +124,8 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty] private double _txProgress;
     [ObservableProperty] private string _txStatus = "Ready";
     [ObservableProperty] private string? _errorMessage;
+    /// <summary>The banner reports an unexpected error written to errors.log; shows "Open log".</summary>
+    [ObservableProperty] private bool _errorHasLog;
 
     // --- Rig ---
     [ObservableProperty] private bool _rigRunning;
@@ -815,7 +822,31 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     }
 
     [RelayCommand]
-    private void DismissError() => ErrorMessage = null;
+    private void DismissError()
+    {
+        ErrorMessage = null;
+        ErrorHasLog = false;
+    }
+
+    // Raised on whichever thread hit the error.
+    private void OnErrorLogged(string where) => Dispatcher.UIThread.Post(() =>
+    {
+        ErrorMessage = $"Something went wrong ({where}). SSTV Studio keeps running; the details are in errors.log.";
+        ErrorHasLog = true;
+    });
+
+    [RelayCommand]
+    private void OpenErrorLog()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{ErrorLog.FilePath}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Could not open the log: {ex.Message}";
+        }
+    }
 
     /// <summary>Collects meter readings during one transmission for the "last TX" summary.</summary>
     private sealed class TxMeterStats
@@ -854,6 +885,7 @@ public partial class MainWindowViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Stops any transmission (which un-keys the rig) and persists settings.</summary>
     public async ValueTask DisposeAsync()
     {
+        ErrorLog.Logged -= OnErrorLogged;
         _txCts?.Cancel();
         if (_txTask is not null)
         {

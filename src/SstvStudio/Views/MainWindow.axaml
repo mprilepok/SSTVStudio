@@ -151,9 +151,11 @@
         <!-- Error banner -->
         <Border DockPanel.Dock="Top" Background="#45273A" Padding="18,8"
                 IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Text="{Binding ErrorMessage}" Foreground="#F38BA8" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" Content="Dismiss" Command="{Binding DismissErrorCommand}" Margin="12,0,0,0"/>
+                <Button Grid.Column="1" Content="Open log" Command="{Binding OpenErrorLogCommand}" Margin="12,0,0,0"
+                        IsVisible="{Binding ErrorHasLog}"/>
+                <Button Grid.Column="2" Content="Dismiss" Command="{Binding DismissErrorCommand}" Margin="8,0,0,0"/>
             </Grid>
         </Border>
 
@@ -547,7 +549,8 @@
                                     </WrapPanel>
                                     <TextBlock Text="TX audio level" Classes="label"/>
                                     <Grid ColumnDefinitions="*,48">
-                                        <Slider Minimum="5" Maximum="100" Value="{Binding Settings.TxLevelPercent}"/>
+                                        <Slider Minimum="5" Maximum="100" Value="{Binding Settings.TxLevelPercent}" Classes="wheel"
+                                                ToolTip.Tip="Drag, or use the mouse wheel over the slider (1 % per notch). Works during TX too."/>
                                         <TextBlock Grid.Column="1" Text="{Binding Settings.TxLevelPercent, StringFormat={}{0:0} %}"
                                                    VerticalAlignment="Center" HorizontalAlignment="Right" Foreground="#CDD6F4"/>
                                     </Grid>
@@ -687,11 +690,11 @@
                                             </StackPanel>
                                             <StackPanel Grid.Column="4">
                                                 <TextBlock Text="TX power (W)" Classes="label"/>
-                                                <TextBox Text="{Binding Settings.TxPowerW}"/>
+                                                <TextBox Text="{Binding Numbers.TxPower.Text}"/>
                                             </StackPanel>
                                         </Grid>
                                         <TextBlock Text="CW ID speed (WPM)" Classes="label"/>
-                                        <TextBox Text="{Binding Settings.CwWpm}" Width="100" HorizontalAlignment="Left"/>
+                                        <TextBox Text="{Binding Numbers.CwWpm.Text}" Width="100" HorizontalAlignment="Left"/>
                                     </StackPanel>
                                 </Border>
 
@@ -705,7 +708,7 @@
                                             </StackPanel>
                                             <StackPanel Grid.Column="2">
                                                 <TextBlock Text="Port" Classes="label"/>
-                                                <TextBox Text="{Binding Settings.RigPort}"/>
+                                                <TextBox Text="{Binding Numbers.RigPort.Text}"/>
                                             </StackPanel>
                                         </Grid>
                                         <CheckBox Content="Connect on startup" IsChecked="{Binding Settings.RigAutoConnect}" Margin="0,8,0,0"/>
@@ -722,19 +725,19 @@
                                         <Grid ColumnDefinitions="*,10,*,10,*,10,*">
                                             <StackPanel>
                                                 <TextBlock Text="PTT lead (ms)" Classes="label"/>
-                                                <TextBox Text="{Binding Settings.PttLeadMs}"/>
+                                                <TextBox Text="{Binding Numbers.PttLead.Text}"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="2">
                                                 <TextBlock Text="PTT tail (ms)" Classes="label"/>
-                                                <TextBox Text="{Binding Settings.PttTailMs}"/>
+                                                <TextBox Text="{Binding Numbers.PttTail.Text}"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="4">
                                                 <TextBlock Text="TX watchdog (s)" Classes="label"/>
-                                                <TextBox Text="{Binding Settings.MaxTxSeconds}"/>
+                                                <TextBox Text="{Binding Numbers.Watchdog.Text}"/>
                                             </StackPanel>
                                             <StackPanel Grid.Column="6">
                                                 <TextBlock Text="SWR trip (0 = off)" Classes="label"/>
-                                                <TextBox Text="{Binding Settings.SwrTripLevel}"/>
+                                                <TextBox Text="{Binding Numbers.SwrTrip.Text}"/>
                                             </StackPanel>
                                         </Grid>
                                     </StackPanel>
@@ -781,7 +784,7 @@
                                             </StackPanel>
                                             <StackPanel Grid.Column="2">
                                                 <TextBlock Text="Clock correction (ppm)" Classes="label"/>
-                                                <TextBox Text="{Binding Settings.ClockPpm}"/>
+                                                <TextBox Text="{Binding Numbers.ClockPpm.Text}"/>
                                             </StackPanel>
                                         </Grid>
                                         <TextBlock Classes="hint" Margin="0,6,0,0"

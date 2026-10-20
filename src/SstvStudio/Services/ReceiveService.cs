@@ -297,8 +297,9 @@ public sealed class ReceiveService : IAsyncDisposable
     {
         await foreach (var action in _work.Reader.ReadAllAsync())
         {
+            // One failed step must not stop reception: log it and go on with the next chunk.
             try { action(); }
-            catch (Exception ex) { System.Diagnostics.Trace.TraceError($"SSTV receiver: {ex}"); }
+            catch (Exception ex) { ErrorLog.Write("receiver", ex); }
         }
     }
 

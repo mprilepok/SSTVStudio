@@ -6,7 +6,10 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using SstvStudio.Core.Audio;
+using SstvStudio.Core.Encoding;
 using SstvStudio.Core.Imaging;
+using SstvStudio.Core.Modes;
 using SstvStudio.Services;
 using SstvStudio.ViewModels;
 using SstvStudio.Views;
@@ -54,8 +57,9 @@ public class UiTests
     private static ComboBox NoiseFilterBox(Window window) =>
         window.GetVisualDescendants().OfType<ComboBox>().Single(c => c.ItemsSource is IEnumerable<NoiseFilter>);
 
+    // What the field shows: an exception's message, as Avalonia's error template displays it.
     private static string Errors(Control control) =>
-        string.Join("; ", DataValidationErrors.GetErrors(control)?.Select(e => e?.ToString()) ?? []);
+        string.Join("; ", DataValidationErrors.GetErrors(control)?.Select(e => e is Exception ex ? ex.Message : e?.ToString()) ?? []);
 
     [Fact]
     public Task NoiseFilterSelectionHasNoBindingError() => Session.Dispatch(() =>
@@ -324,6 +328,181 @@ public class UiTests
         Assert.Equal("OM1PU", vm.Settings.MyCall);
         vm.Settings.MyCall = "";
         window.Close();
+    }, CancellationToken.None);
+
+    [Fact]
+    public Task MouseWheelOverTheTxLevelAdjustsIt() => Session.Dispatch(() =>
+    {
+        var vm = new MainWindowViewModel();
+        var window = new MainWindow { DataContext = vm, Width = 1256, Height = 860 };
+        window.Show();
+        vm.SelectedTab = MainWindowViewModel.TransmitTab;
+        Dispatcher.UIThread.RunJobs();
+        var slider = window.GetVisualDescendants().OfType<Slider>().Single(s => s.Classes.Contains("wheel") && s.IsEffectivelyVisible);
+        var over = slider.TranslatePoint(new Point(slider.Bounds.Width / 2, slider.Bounds.Height / 2), window)!.Value;
+        var panel = slider.FindAncestorOfType<ScrollViewer>()!;
+        var scrolled = panel.Offset;
+        var start = vm.Settings.TxLevelPercent;
+
+        window.MouseWheel(over, new Vector(0, 1));
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(start + 1, vm.Settings.TxLevelPercent);
+
+        window.MouseWheel(over, new Vector(0, -1));
+        window.MouseWheel(over, new Vector(0, -1));
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(start - 1, vm.Settings.TxLevelPercent);
+        Assert.Equal(scrolled, panel.Offset); // the wheel adjusted the level instead of scrolling the panel
+
+        vm.Settings.TxLevelPercent = start;
+        window.Close();
+    }, CancellationToken.None);
+
+    [Fact]
+    public Task NumberFieldsRejectTextOutsideTheirRange() => Session.Dispatch(() =>
+    {
+        var vm = new MainWindowViewModel();
+        var window = new MainWindow { DataContext = vm, Width = 1256, Height = 860 };
+        window.Show();
+        vm.SelectedTab = MainWindowViewModel.SettingsTab;
+        Dispatcher.UIThread.RunJobs();
+        // The TextBox next to a label, as laid out on the Settings tab.
+        TextBox Field(string label) => window.GetVisualDescendants().OfType<TextBlock>()
+            .Single(t => t.Text == label && t.IsEffectivelyVisible)
+            .FindAncestorOfType<StackPanel>()!.GetVisualDescendants().OfType<TextBox>().First();
+        var port = Field("Port");
+        var before = vm.Settings.RigPort;
+
+        foreach (var bad in new[] { "abc", "4532.5", "70000" })
+        {
+            port.Text = bad;
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(DataValidationErrors.GetHasErrors(port), bad);
+            Assert.Equal("Whole number, 1 to 65535", Errors(port)); // exactly this, not an exception dump
+            Assert.Equal(before, vm.Settings.RigPort); // not applied
+        }
+
+        port.Text = "4533";
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(DataValidationErrors.GetHasErrors(port));
+        Assert.Equal(4533, vm.Settings.RigPort);
+
+        var ppm = Field("Clock correction (ppm)");
+        ppm.Text = "1,5";
+        Dispatcher.UIThread.RunJobs();
+        Assert.False(DataValidationErrors.GetHasErrors(ppm), Errors(ppm));
+        Assert.Equal(1.5, vm.Settings.ClockPpm);
+
+        vm.Settings.RigPort = before; // the other UI tests expect the defaults
+        vm.Settings.ClockPpm = 0;
+        window.Close();
+    }, CancellationToken.None);
+
+    // ---------------------------------------------------------------- error log
+    // Here because ErrorLog writes to the data folder, which must be the temp DataDir.
+
+    /// <summary>A WAV with two Robot 36 pictures, a second of silence before, between and after them.</summary>
+    private static string TwoPictureRecording()
+    {
+        const int rate = 12000;
+        var path = Path.Combine(TempFolder("rx"), "two.wav");
+        var options = new TransmitOptions(SendPreamble: true);
+        var mode = SstvModes.Robot36;
+        using var writer = new WavFileWriter(File.Create(path), rate);
+        var buffer = new float[4096];
+        writer.Write(new float[rate]);
+        for (var p = 0; p < 2; p++)
+        {
+            var synth = new ToneSynthesizer(SstvEncoder.Encode(mode, RgbImage.Blank(mode.Width, mode.Height), options),
+                SstvEncoder.DurationMs(mode, options), rate, 0.5);
+            int n;
+            while ((n = synth.Read(buffer)) > 0) writer.Write(buffer.AsSpan(0, n));
+            writer.Write(new float[rate]);
+        }
+        return path;
+    }
+
+    [Fact]
+    public async Task ReceiverErrorIsLoggedAndReceptionContinues()
+    {
+        var recording = TwoPictureRecording();
+        File.Delete(ErrorLog.FilePath);
+        await using var service = new ReceiveService();
+        var started = 0;
+        var completed = 0;
+        service.ImageStarted += _ =>
+        {
+            if (++started == 1) throw new InvalidOperationException("forced test failure in the receiver");
+        };
+        service.ImageCompleted += (_, _) => completed++;
+
+        await service.DecodeFileAsync(recording, DecodeOptions.Default);
+
+        Assert.Equal(2, started);
+        Assert.True(completed >= 1, "the picture after the error must still be received");
+        var log = File.ReadAllText(ErrorLog.FilePath);
+        Assert.Contains("receiver", log);
+        Assert.Contains("forced test failure in the receiver", log);
+    }
+
+    [Fact]
+    public Task LoggedErrorShowsTheBannerWithOpenLog() => Session.Dispatch(() =>
+    {
+        var vm = new MainWindowViewModel();
+        ErrorLog.Write("test", new InvalidOperationException($"banner test {Guid.NewGuid()}"));
+        Dispatcher.UIThread.RunJobs();
+        Assert.Contains("errors.log", vm.ErrorMessage);
+        Assert.True(vm.ErrorHasLog);
+        vm.DismissErrorCommand.Execute(null);
+        Assert.Null(vm.ErrorMessage);
+        Assert.False(vm.ErrorHasLog);
+    }, CancellationToken.None);
+
+    [Fact]
+    public void RepeatedErrorIsWrittenOnce()
+    {
+        _ = DataDir;
+        var marker = $"repeat test {Guid.NewGuid()}";
+        for (var i = 0; i < 50; i++) ErrorLog.Write("loop", new InvalidOperationException(marker));
+        ErrorLog.Write("other", new InvalidOperationException("something else")); // flushes the repeat count
+        var log = File.ReadAllText(ErrorLog.FilePath);
+        Assert.Equal(1, log.Split(marker).Length - 1);
+        Assert.Contains("repeated 49 more time(s)", log);
+    }
+
+    [Fact]
+    public Task UnreadableSettingsFallBackToTheLastGoodCopy() => Session.Dispatch(() =>
+    {
+        var file = Path.Combine(DataDir, "settings.json");
+        var original = File.Exists(file) ? File.ReadAllText(file) : null;
+        var originalBackup = File.Exists(AppSettings.BackupPath) ? File.ReadAllText(AppSettings.BackupPath) : null;
+        try
+        {
+            var good = AppSettings.Load();
+            good.MyCall = "OM0BAK";
+            good.Save();
+            Assert.Null(AppSettings.Load().LoadProblem); // a clean load refreshes the backup
+
+            File.WriteAllText(file, "{ \"MyCall\": \"OM0BAK\", \"RigPort\": "); // cut off mid-write
+            var vm = new MainWindowViewModel();
+            Assert.Equal("OM0BAK", vm.Settings.MyCall);
+            Assert.Contains("last good copy", vm.ErrorMessage);
+            var kept = Directory.GetFiles(DataDir, "settings-unreadable-*.json");
+            Assert.NotEmpty(kept);
+            Assert.Contains("\"RigPort\": ", File.ReadAllText(kept[^1])); // set aside, not lost
+
+            File.WriteAllText(file, "garbage");
+            File.Delete(AppSettings.BackupPath);
+            var fresh = AppSettings.Load();
+            Assert.Equal("", fresh.MyCall);
+            Assert.Contains("default settings", fresh.LoadProblem);
+        }
+        finally
+        {
+            foreach (var f in Directory.GetFiles(DataDir, "settings-unreadable-*.json")) File.Delete(f);
+            if (original is null) File.Delete(file); else File.WriteAllText(file, original);
+            if (originalBackup is null) File.Delete(AppSettings.BackupPath); else File.WriteAllText(AppSettings.BackupPath, originalBackup);
+        }
     }, CancellationToken.None);
 
     // ---------------------------------------------------------------- backup: settings and log

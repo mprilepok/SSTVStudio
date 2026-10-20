@@ -1,7 +1,6 @@
 # SSTV Studio — Roadmap and publishing tasks
 
-Status on 2026-10-20: version 1.0.0 builds and passes 124 automated tests, with 1 skipped as a known issue. They
-cover:
+Status on 2026-10-20: version 1.0.0 builds and passes 132 automated tests, stable over repeated runs. They cover:
 - encoder and decoder round trips for all 15 modes;
 - real-world regressions;
 - a reception benchmark;
@@ -9,7 +8,8 @@ cover:
 - headless UI tests.
 
 The operator has used it on the air: Robot 36, Martin and Scottie pictures received, and Robot 36 transmitted on
-14.230 MHz.
+14.230 MHz. On 2026-10-20 dial control, PTT and all TX meters were checked on a Yaesu FT-991 through rigctld (see
+P0 → Hardware).
 
 Legend: **P0** = must do before the first public release · **P1** = soon after · **P2** = later ideas.
 🧑 = needs a decision from the author · ⚠️ = not yet verified with real hardware or services.
@@ -36,14 +36,34 @@ messages and actions that are safe to repeat, and guard every off-air failure wi
     a zoom.
   - The Transmit tab's header row is now aligned: the OVERLAY label, the profile chips, the zoom bar and the
     Scaling dropdown.
+- [x] **TX audio level by mouse wheel:** 1 % per notch with the pointer over the slider. The panel doesn't scroll
+  meanwhile, and it works during TX. Any slider with the `wheel` class gets this.
 - [x] **Callsigns are upper case as you type or paste** (QSO callsign on both tabs, and My callsign), with the
   cursor kept in place.
 - [x] **Reception benchmark** with fixed-seed HF conditions and PSNR floors. Its findings are listed under P1 →
   Reception.
-- [x] User manual (section 2.7, sections 4.2 and 5.1 on zoom, and the files table) and `CLAUDE.md` updated.
+- [x] **P0 robustness done:** error log, settings safety, number checks, and the Robot 36 dropped-picture fix (see
+  P0 → Robustness).
+- [x] **Two flaky rig tests fixed.** The fake rigctld now accepts reconnects, and the benchmark runs on its own.
+- [x] **Rig checks on a Yaesu FT-991** (Hamlib 4.7.2, rigctld), with the operator present:
+  - the dial is set and read back exactly, with no tuning-step rounding;
+  - PTT keys and unkeys cleanly;
+  - every TX meter answers: power is 16.3 W of 20 W at the 48.75 % TX level, with SWR 1.0 and no ALC action.
 
-Next session: the Robot 36 first-sync bug, then more sensitive VIS detection (P1 → Reception). Nothing from this
-session is committed yet.
+  The results are under P0 → Hardware.
+- [x] User manual (section 2.7, sections 4.2 and 5.1 on zoom, the TX level, troubleshooting, and the files table)
+  and `CLAUDE.md` updated.
+
+Next:
+1. Commit this work. Nothing from this session is committed yet.
+2. Restart the app on the new build and do the remaining rig tests through it (P0 → Hardware, operator):
+   - Fix tuning on a real picture;
+   - PD 290 at real power;
+   - Wavelog upload and the live CAT push;
+   - receiving at 44.1 kHz;
+   - a 2-second key at ~75 % to see whether the FT-991's ALC reading rises.
+3. The three packaging decisions (🧑).
+4. More sensitive VIS detection (P1 → Reception).
 
 ---
 
@@ -51,7 +71,7 @@ session is committed yet.
 
 ### Project and legal
 
-- [ ] **Put the project under git** and push it to a hosting service (e.g. GitHub). 🧑 Choose a repository name and
+- [x] **Put the project under git** and push it to a hosting service (e.g. GitHub). 🧑 Choose a repository name and
   whether it's public from day one.
   Partly done: the repository exists, with an initial commit (`.gitignore`, `.gitattributes`, `LICENSE`) and the
   commit author set to "Michal OM1PU". The source code isn't committed yet and no remote is set.
@@ -68,6 +88,23 @@ session is committed yet.
 These paths are covered by automated tests against simulated rigs and servers, but haven't been checked against
 real hardware or a real Wavelog instance:
 
+**Rig checks on 2026-10-20: Yaesu FT-991, Hamlib 4.7.2 (backend 1035), rigctld, 14.230 PKTUSB, RF power 20 %.**
+They were run directly over rigctld with the operator present, not through the app.
+- **Dial (`F` then `f`):** offsets of +47, −53, +12, −9, +150 and +1 Hz all read back exactly. There's no tuning-step
+  rounding on this rig, so Fix tuning lands to the hertz.
+- **PTT (`T 1` / `T 0`):** keys within 63 ms, `t` reports it while keyed, and it unkeys cleanly.
+- **Meters while keyed:** all five answer, including `RFPOWER_METER_WATTS`, so the app shows real watts.
+
+  | TX level | Power | SWR | ALC | Current |
+  |---|---|---|---|---|
+  | none | 0 W | 1.0 | 7.8 % | 3.8 A |
+  | 10 % | 0.48 W | 1.0 | 7.8 % | 3.8 A |
+  | 25 % | 3.3 W | 1.0 | 7.8 % | 4.5 A |
+  | 48.75 % (the operator's setting) | 16.3 W of 20 W | 1.0 | 7.8 % | 5.9 A |
+
+  The tone was 1900 Hz. ALC rests at 7.8 %, not 0, which matters for the P2 automatic TX level. It didn't move at
+  any of these levels, so whether it rises under real ALC action is still to be checked: key ~2 s at 70–80 %.
+
 - [ ] **Fix tuning** (`F <hz>` through rigctld) on a real rig, on USB and on LSB. Check the dial moves in the right
   direction and that the next picture reads "Tuning OK".
   Plan:
@@ -79,12 +116,15 @@ real hardware or a real Wavelog instance:
   6. Note how the rig handles RIT, split and its tuning step.
   7. Record the rig model and Hamlib backend with each result.
   If correct retunes often still show 10–15 Hz off, widen `Retune.ToleranceHz` to about 20 Hz.
+  FT-991: setting the dial and reading it back is verified to the hertz (see above). The on-air test with a real
+  picture is still to do.
 - [ ] **PTT through serial RTS and DTR** with a real interface (only rigctld PTT has been used on the air).
 - [ ] **Wavelog upload** to a real instance. Check the QSO shows up with the right band, mode (SSTV), reports and
   station profile, and test a wrong API key and an unreachable server.
 - [ ] **Wavelog live CAT push** (`/api/radio`): check that Wavelog's QSO form follows the rig.
 - [ ] **TX meters** on at least two rig models. Check which meters report `n/a`, and test the SWR trip with a
-  deliberately bad match into a dummy load.
+  deliberately bad match into a dummy load. FT-991: all meters work (see above). Still to do: a second rig model,
+  ALC under real ALC action, and the SWR trip.
 - [ ] **A long mode** (PD 180/240/290) transmitted end to end. Check the watchdog margin and PA temperature at real
   power.
 - [ ] **Receive at 44.1 kHz** on real hardware (testing so far was at 48 kHz).
@@ -111,15 +151,17 @@ real hardware or a real Wavelog instance:
 
 ### Robustness
 
-- [ ] **Crash and error log**: today an unexpected error on the receiver worker only goes to `Trace` and is
-  invisible. Write unhandled exceptions (UI thread, worker, `TaskScheduler.UnobservedTaskException`) to
-  `errors.log` in the data folder, and show a "something went wrong — see log" banner.
-  *Done when:* a forced exception in the decoder appears in the log, and the app keeps receiving.
-- [ ] **Settings safety**: today a corrupt `settings.json` silently resets to defaults, losing overlay profiles. Keep
-  `settings.json.bak` from the last good load, and tell the user when a reset happens. (Manual export/import and the
-  backup kept before an import exist now; an automatic backup of the last good load is still missing.)
-- [ ] **Validate number fields in Settings** (port, PTT lead/tail, watchdog, ppm, SWR trip). Today typing text gives
-  a red binding error, but the old value silently stays in use. Show the allowed range.
+- [x] **Crash and error log.** Unexpected errors are written to `errors.log` in the data folder: from the UI
+  thread (survived), the receiver worker (reception goes on) and background tasks. A repeating error is written
+  once. The banner says "Something went wrong (…)" and has an **Open log** button. Tested: an error forced in the
+  receiver is logged, and the next picture is still received.
+- [x] **Settings safety.** Every clean load keeps `settings.json.bak`. An unreadable `settings.json` is set aside as
+  `settings-unreadable-<time>Z.json`, the last good copy (or defaults) is used, and the banner says so. Saving is
+  atomic (temp file, then swap), so a crash mid-save can't corrupt the file.
+- [x] **Number fields in Settings are checked.** TX power, CW speed, port, PTT lead and tail, watchdog, SWR trip and
+  clock ppm each have a range. Text outside it isn't applied, and the field shows the range, e.g. "Whole number,
+  1 to 65535". Both "1.5" and "1,5" are accepted.
+- [x] **Robot 36 dropped pictures** fixed (moved here from P1, see P1 → Reception).
 
 ### Documentation for users
 
@@ -141,19 +183,17 @@ real hardware or a real Wavelog instance:
   - **No header found at 2 dB SNR or less, or 8 dB deep in a fade**, although the picture data is still readable
     at 5 dB. The header detector is the weakest link.
   - **A steady carrier at half the signal's level ruins pictures:** 5–9 dB PSNR, and none at all at 2100 Hz.
-  - **About 2 % of Robot 36 pictures are dropped at 5–10 dB SNR**, and ~1 in 48 Scottie S2 at 5 dB (see below).
-- [ ] **Robot 36 first-sync false edge** (reliability bug). Robot's VIS stop bit runs into the first sync, making
-  one long 1200 Hz tone. A 1 ms noise blip inside it looks like a sync end, the first pulse locks ~30 ms early,
-  and the picture is dropped at the 8-period check. It's pinned by the skipped test
-  `FirstSyncIsNotFooledByNoiseInTheVisStopBit`.
-  Two tries so far:
-  - Judging "high after the edge" over 3 ms instead of 1 ms fixed the pinned seeds, but broke manual start and
-    weak fading pictures, because noise scored higher.
-  - Measuring the 1 ms weight over 3 ms passed the tests, but made Scottie S2 with a carrier much worse
-    (16.8 → 5.6 dB).
-
-  Ideas: don't let a single pulse move the timing until a second pulse confirms it; or redo the 8-period check
-  with the best-fitting phase before dropping the picture.
+  - **About 2 % of Robot 36 pictures were dropped at 5–10 dB SNR** (fixed, below), and ~1 in 48 Scottie S2 at 5 dB
+    (still open).
+- [x] **Robot 36 first-sync false edge** (reliability bug, fixed 2026-10-20). Robot's VIS stop bit runs into the
+  first sync, making one long 1200 Hz tone. A 1 ms noise blip inside it looked like a sync end, the timing jumped
+  ~30 ms early, and the picture was dropped at the 8-period check.
+  - **Fix:** a lone pulse no longer moves the timing; two locked pulses must agree first (`SstvDecoder.Confirm`).
+  - **Results:** drops over 48 seeds × 3 modes × 2 SNRs went from 3 to 1, picture quality is unchanged, and both
+    failing benchmark cases now decode and are required again. Pinned by `FirstSyncIsNotFooledByNoiseInTheVisStopBit`.
+  - **Tried first and rejected:** two edge-scoring changes, which each broke something else (manual start, or
+    Scottie with a carrier).
+- [ ] **Scottie S2 drop at 5 dB** (~1 picture in 48). Not yet investigated: trace it as was done for Robot 36.
 - [~] **Robust pixel values (weak signals): tried, no gain.** Weighting readings by signal power and clamping
   them to 1400–2400 Hz changed PSNR by ≤ 0.05 dB in every condition. In this regime the noise isn't spiky, so
   it was reverted.
@@ -240,7 +280,8 @@ real hardware or a real Wavelog instance:
   - ⚠️ Verify on at least two rig models.
   - 🧑 Decide: raise as well as lower (recommended), per-band memory (recommended), and that touching the slider by
     hand turns auto off (recommended).
-- [ ] **Ctrl + mouse wheel zoom** over the picture on both tabs, using the same zoom setting as the slider.
+- [ ] **Ctrl + mouse wheel zoom** over the picture on both tabs, using the same zoom setting as the slider. The
+  zoom sliders could also take the `wheel` class, like the TX level slider.
 - [ ] **Accessibility**: keyboard shortcuts (F5 = TX, Esc = stop), screen-reader names for all controls.
 
 ---

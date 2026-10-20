@@ -6,6 +6,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using SstvStudio.Services;
 using SstvStudio.ViewModels;
 using SstvStudio.Views;
 
@@ -19,6 +20,13 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // An error in a click handler or binding is logged and survived, rather than closing the app mid-QSO.
+        Dispatcher.UIThread.UnhandledException += (_, e) =>
+        {
+            ErrorLog.Write("user interface", e.Exception);
+            e.Handled = true;
+        };
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var splash = new SplashWindow();

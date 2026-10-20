@@ -12,11 +12,16 @@ using Xunit.Abstractions;
 
 namespace SstvStudio.Tests;
 
+/// <summary>Runs the benchmark on its own: its parallel decoding starved the rig tests' network timeouts.</summary>
+[CollectionDefinition(nameof(ReceptionBenchmark), DisableParallelization = true)]
+public class ReceptionBenchmarkCollection;
+
 /// <summary>
 /// Reception benchmark: test pictures through simulated HF conditions, scored by PSNR against the original.
 /// Every decoder change must keep each score at or above its floor in <see cref="Floors"/>; raise a floor when a
 /// change improves it. Run with <c>--logger "console;verbosity=detailed"</c> to see the table.
 /// </summary>
+[Collection(nameof(ReceptionBenchmark))]
 public class ReceptionBenchmark(ITestOutputHelper output)
 {
     private const int Rate = 12000;
@@ -49,8 +54,7 @@ public class ReceptionBenchmark(ITestOutputHelper output)
     /// <summary>
     /// Lowest acceptable PSNR (dB) per condition, over all modes: about 1 dB below the worst mode on 2026-10-20.
     /// Null marks a known gap: reported, not yet required. No VIS header is found at 2 dB or less, or deep in a
-    /// fade. Robot 36 is dropped with the clock and carrier seeds (first sync locks onto a noise blip in the VIS
-    /// stop bit; see <c>DecoderTests.FirstSyncIsNotFooledByNoiseInTheVisStopBit</c>).
+    /// fade.
     /// </summary>
     private static readonly Dictionary<string, double?> Floors = new()
     {
@@ -61,8 +65,8 @@ public class ReceptionBenchmark(ITestOutputHelper output)
         ["SNR 0 dB"] = null,
         ["fade 10 dB, SNR 8"] = null,
         ["drift 40 Hz, SNR 10"] = 14.0,
-        ["clock +300 ppm, SNR 10"] = null,
-        ["carrier 1800 Hz, SNR 10"] = null,
+        ["clock +300 ppm, SNR 10"] = 14.5,
+        ["carrier 1800 Hz, SNR 10"] = 11.0,
     };
 
     [Fact]
@@ -71,9 +75,7 @@ public class ReceptionBenchmark(ITestOutputHelper output)
         var scores = new ConcurrentBag<Score>();
         // Fixed seeds, so every run (and every change) is scored on exactly the same noise.
         var cases = Modes.SelectMany((m, i) => Conditions.Select((c, j) => (Mode: SstvModes.Find(m)!, Condition: c, Seed: 100 * i + j)));
-        // Half the cores: at full load the rig tests running alongside miss their network timeouts.
-        var options = new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2) };
-        Parallel.ForEach(cases, options, c => scores.Add(Run(c.Mode, c.Condition, c.Seed)));
+        Parallel.ForEach(cases, c => scores.Add(Run(c.Mode, c.Condition, c.Seed)));
 
         var table = new StringBuilder("| Condition | " + string.Join(" | ", Modes) + " |\n|---|" + string.Concat(Modes.Select(_ => "---|")) + "\n");
         foreach (var condition in Conditions)

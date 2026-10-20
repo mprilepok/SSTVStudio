@@ -35,9 +35,20 @@ public class RigServiceTests
             _ = Task.Run(AcceptAsync);
         }
 
+        // Like rigctld, accepts again after a disconnect (RigService reconnects after a command timeout).
         private async Task AcceptAsync()
         {
-            using var client = await _listener.AcceptTcpClientAsync(_cts.Token);
+            while (!_cts.IsCancellationRequested)
+            {
+                try { await ServeAsync(await _listener.AcceptTcpClientAsync(_cts.Token)); }
+                catch (Exception) when (!_cts.IsCancellationRequested) { /* client went away; wait for the next */ }
+                catch (Exception) { return; }
+            }
+        }
+
+        private async Task ServeAsync(TcpClient accepted)
+        {
+            using var client = accepted;
             using var reader = new StreamReader(client.GetStream(), Encoding.ASCII);
             await using var writer = new StreamWriter(client.GetStream(), Encoding.ASCII) { AutoFlush = true, NewLine = "\n" };
             while (await reader.ReadLineAsync(_cts.Token) is { } line)
@@ -137,7 +148,9 @@ public class RigMeterTests
         await connected.Task.WaitAsync(TimeSpan.FromSeconds(10));
         rig.Transmitting = true;
         var status = await metered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        await Task.Delay(200); // several more meter cycles
+        // Several more meter cycles. Waited for, not timed: under a full test run 200 ms wasn't always 3 cycles.
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (fake.Commands.Count(c => c == "l SWR") <= 2 && DateTime.UtcNow < deadline) await Task.Delay(20);
 
         Assert.Equal(new TxMeters(null, 0.48, 1.3, 0.05, 12.5), status.Meters);
         // The unsupported level is asked once per connection, not on every cycle.

@@ -32,8 +32,13 @@ public sealed class SstvDecoder
     // Sender sound-card clock error we correct. Real stations are seen ~1 % off (a Martin M1 with 450.8 ms
     // lines instead of 446.4 ms); 3 % leaves margin.
     private const double MaxSlant = 0.03;
-    private const double LockedWindowMs = 10;  // search half-width right after a locked pulse
-    private const double InitialWindowMs = 25; // before any lock: covers the VIS-end uncertainty
+    private const double LockedWindowMs = 10;  // search half-width once the timing is confirmed
+    private const double InitialWindowMs = 25; // until then: covers the VIS-end uncertainty
+    // Two locked pulses confirm the timing when they're whole periods apart within this, plus the clock error
+    // allowed over the gap. A lone pulse never moves the timing: in Robot 36 a noise blip inside the VIS stop
+    // bit (one long 1200 Hz tone with the first sync) looked like a sync end ~30 ms early, the timing followed
+    // it, the next pulses were missed, and ~2 % of pictures were dropped at 10 dB SNR.
+    private const double ConfirmToleranceMs = 2;
     // Sync score = fraction of samples matching an ideal sync edge (best position in the search window).
     private const double LockScore = 0.7; // good enough to use the pulse for timing
     // Presence = sync score minus the score of a control window half a period later (picture data).
@@ -70,6 +75,7 @@ public sealed class SstvDecoder
     private int _nextRender;
     private int _lastPresentPeriod; // last period whose sync score showed a signal
     private int _lastLockPeriod;    // last period whose pulse was used for timing
+    private bool _confirmed;        // two locked pulses agree, so the timing comes from the pulses
     private readonly List<double> _syncHz = []; // measured tone of locked sync pulses (after clock correction)
     private double _tuningOffsetHz;             // receiver mistuning, from the sync tone
     private DateTime _startedUtc;
@@ -186,6 +192,7 @@ public sealed class SstvDecoder
         _nextRender = 0;
         _lastPresentPeriod = -1;
         _lastLockPeriod = -1;
+        _confirmed = false;
         _syncHz.Clear();
         _tuningOffsetHz = tuningOffsetHz;
         _manual = manual;
@@ -229,15 +236,20 @@ public sealed class SstvDecoder
             // Presence uses its own narrow window, equal for sync and control. The fitted timing predicts the pulse
             // to within a millisecond or two, so narrow is enough, and equal widths keep noise at a median of ~0.
             // (Using the wide search window here makes weak, fading pictures look absent.)
-            var presenceWindow = (_lastLockPeriod < 0 ? InitialWindowMs : LockedWindowMs) * _k;
+            var presenceWindow = (_confirmed ? LockedWindowMs : InitialWindowMs) * _k;
             var presence = FindSyncEnd(expected, presenceWindow).Score - FindSyncEnd(control, presenceWindow).Score;
             _presence.Add(presence);
             if (score >= LockScore)
             {
                 _syncs.Add((_nextSync, end));
-                _lastLockPeriod = _nextSync;
                 MeasureSyncTone(end);
-                Refit();
+                // Timing follows the pulses once two agree. A manual start has no VIS to go by, so its first
+                // pulse sets the phase.
+                if (_confirmed || Confirm() || (_manual && _lastLockPeriod < 0))
+                {
+                    _lastLockPeriod = _nextSync;
+                    Refit();
+                }
             }
             if (presence >= PresenceMargin) _lastPresentPeriod = _nextSync;
             _nextSync++;
@@ -312,8 +324,28 @@ public sealed class SstvDecoder
     {
         if (_manual && _lastLockPeriod < 0) return 0.5 * _layout.PeriodMs; // phase unknown: search a whole period
         var periodsSinceLock = _lastLockPeriod < 0 ? _nextSync + 1 : _nextSync - _lastLockPeriod;
-        var baseMs = _lastLockPeriod < 0 ? InitialWindowMs : LockedWindowMs;
+        var baseMs = _confirmed ? LockedWindowMs : InitialWindowMs;
         return Math.Min(baseMs + MaxSlant * _layout.PeriodMs * periodsSinceLock, 0.4 * _layout.PeriodMs);
+    }
+
+    /// <summary>
+    /// Looks for an earlier locked pulse that agrees with the newest one: whole periods apart, within the
+    /// tolerance plus the clock error allowed over the gap. If one does, the timing is confirmed and pulses
+    /// that don't fit the pair (false edges) are dropped from the fit.
+    /// </summary>
+    private bool Confirm()
+    {
+        var latest = _syncs[^1];
+        double Tolerance(int gap) => (ConfirmToleranceMs + MaxSlant * _layout.PeriodMs * Math.Abs(gap)) * _k;
+        foreach (var earlier in _syncs.Take(_syncs.Count - 1).Reverse())
+        {
+            var gap = latest.Period - earlier.Period;
+            if (Math.Abs(latest.End - earlier.End - _bNominal * gap) > Tolerance(gap)) continue;
+            _syncs.RemoveAll(s => Math.Abs(s.End - earlier.End - _bNominal * (s.Period - earlier.Period)) > Tolerance(s.Period - earlier.Period));
+            _confirmed = true;
+            return true;
+        }
+        return false;
     }
 
     private void Refit()

@@ -100,19 +100,64 @@ public partial class AppSettings : ObservableObject
     public bool WavelogConfigured =>
         !string.IsNullOrWhiteSpace(WavelogUrl) && !string.IsNullOrWhiteSpace(WavelogApiKey) && !string.IsNullOrWhiteSpace(WavelogStationId);
 
+    /// <summary>Set by <see cref="Load"/> when settings.json couldn't be read; a message for the user.</summary>
+    [JsonIgnore] public string? LoadProblem { get; private set; }
+
+    /// <summary>Copy of the last settings.json that loaded cleanly.</summary>
+    public static string BackupPath => FilePath + ".bak";
+
+    /// <summary>
+    /// Loads settings.json and keeps a copy as the last good one. An unreadable file is set aside (never
+    /// overwritten) and the last good copy is used, or defaults if there is none; <see cref="LoadProblem"/> says so.
+    /// </summary>
     public static AppSettings Load()
+    {
+        if (!File.Exists(FilePath)) return new AppSettings().Migrate();
+        try
+        {
+            var loaded = Read(FilePath);
+            try { File.Copy(FilePath, BackupPath, overwrite: true); }
+            catch (IOException) { /* no backup this time; the settings themselves are fine */ }
+            return loaded;
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            var kept = SetAsideUnreadable();
+            AppSettings settings;
+            string used;
+            try
+            {
+                settings = Read(BackupPath);
+                used = "the last good copy is in use";
+            }
+            catch (Exception)
+            {
+                settings = new AppSettings().Migrate();
+                used = "the default settings are in use";
+            }
+            settings.LoadProblem = $"Your settings file couldn't be read, so {used}." +
+                                   (kept is null ? "" : $" The unreadable file is kept as {kept} in the data folder.");
+            return settings;
+        }
+    }
+
+    private static AppSettings Read(string path) =>
+        (JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), JsonOptions)
+         ?? throw new InvalidDataException("The settings file is empty.")).Migrate();
+
+    // Renames an unreadable settings.json so the next save can't overwrite it; returns its new name.
+    private static string? SetAsideUnreadable()
     {
         try
         {
-            if (File.Exists(FilePath)
-                && JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath), JsonOptions) is { } loaded)
-                return loaded.Migrate();
+            var name = $"settings-unreadable-{DateTime.UtcNow:yyyyMMdd_HHmmss}Z.json";
+            File.Move(FilePath, Path.Combine(DataDirectory, name), overwrite: true);
+            return name;
         }
-        catch (Exception ex) when (ex is JsonException or IOException)
+        catch (Exception)
         {
-            // Corrupt or locked settings: start from defaults rather than refusing to launch.
+            return null; // locked: it stays where it is
         }
-        return new AppSettings().Migrate();
     }
 
     /// <summary>Ensures there are overlay profiles; turns a customised legacy two-line overlay into one.</summary>
@@ -146,7 +191,10 @@ public partial class AppSettings : ObservableObject
     public void Save()
     {
         Directory.CreateDirectory(DataDirectory);
-        ExportTo(FilePath);
+        // Write a temp file and swap it in, so a crash or power cut mid-write never leaves a half-written file.
+        var temp = FilePath + ".tmp";
+        ExportTo(temp);
+        File.Move(temp, FilePath, overwrite: true);
     }
 
     /// <summary>Writes the settings to <paramref name="path"/>, e.g. to move them to another PC.</summary>
